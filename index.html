@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="RoboBuilder — Assemble robots from real parts and program them with visual blocks. Learn robotics through interactive simulation.">
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'none';
+    script-src 'self' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src https://fonts.gstatic.com;
+    img-src 'self' data:;
+    connect-src 'none';
+    frame-src 'none';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'none';
+  ">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="Referrer-Policy" content="no-referrer">
+  <title>RoboBuilder — Learn Robotics</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='6' y='9' width='20' height='16' rx='4' fill='%233B82F6'/><circle cx='12' cy='16' r='3' fill='%231E3A5F'/><circle cx='20' cy='16' r='3' fill='%231E3A5F'/><circle cx='12' cy='16' r='1.2' fill='%2393C5FD'/><circle cx='20' cy='16' r='1.2' fill='%2393C5FD'/><rect x='2' y='13' width='4' height='7' rx='2' fill='%232563EB'/><rect x='26' y='13' width='4' height='7' rx='2' fill='%232563EB'/><line x1='16' y1='2' x2='16' y2='9' stroke='%233B82F6' stroke-width='2'/><circle cx='16' cy='2' r='2' fill='%23F97316'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <script src="https://unpkg.com/blockly@9.3.3/blockly.min.js"
+          integrity="sha384-rTOjCSH++XXgFxzePTRTgRTdSbx/KlwbWOD1LDBKPCaLkYICHO7x3U6G4SJ8nOB3"
+          crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/blockly@9.3.3/javascript_compressed.js"
+          integrity="sha384-1e+JIxJVCZuQMsVBfrZzKB39TsQUx7HgARf29KbW4/xnavJ3NL4RDD6AXXk3+1dQ"
+          crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/blockly@9.3.3/msg/en.js"
+          integrity="sha384-Vvba1bFUqIunODdonsw2EgnTVfIybW4n9IZ+5CjDU1KkODDst5odMmoVyYtT7oug"
+          crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SPLASH SCREEN
+  ═══════════════════════════════════════════════════════ -->
+  <div id="splash-screen">
+    <div class="splash-bg-grid"></div>
+    <div class="splash-orb splash-orb-1"></div>
+    <div class="splash-orb splash-orb-2"></div>
+    <div class="splash-content">
+      <div class="splash-logo-row">
+        <svg class="splash-robot" width="64" height="64" viewBox="0 0 72 72">
+          <rect x="16" y="22" width="40" height="30" rx="8" fill="#3B82F6"/>
+          <rect x="16" y="22" width="40" height="8" rx="8" fill="#2563EB" opacity="0.6"/>
+          <circle cx="28" cy="36" r="6" fill="#1E3A5F"/>
+          <circle cx="44" cy="36" r="6" fill="#1E3A5F"/>
+          <circle cx="28" cy="36" r="2.5" fill="#93C5FD"/>
+          <circle cx="44" cy="36" r="2.5" fill="#93C5FD"/>
+          <circle cx="29" cy="35" r="1" fill="white" opacity="0.8"/>
+          <circle cx="45" cy="35" r="1" fill="white" opacity="0.8"/>
+          <rect x="26" y="46" width="20" height="3" rx="1.5" fill="#1D4ED8"/>
+          <line x1="36" y1="6" x2="36" y2="22" stroke="#3B82F6" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="36" cy="6" r="4" fill="#F97316"/>
+          <rect x="6" y="28" width="10" height="12" rx="3" fill="#1D4ED8"/>
+          <rect x="56" y="28" width="10" height="12" rx="3" fill="#1D4ED8"/>
+          <rect x="12" y="52" width="14" height="8" rx="2" fill="#374151"/>
+          <rect x="46" y="52" width="14" height="8" rx="2" fill="#374151"/>
+        </svg>
+        <div>
+          <h1 class="splash-title"><span class="logo-robo">Robo</span><span class="logo-builder">Builder</span></h1>
+          <p class="splash-tagline">Build robots. Write code. See them move.</p>
+        </div>
+      </div>
+      <p class="splash-desc">Snap together real robot parts, wire them up, program with visual blocks, and watch your robot move in real-time simulation.</p>
+      <div class="splash-chips">
+        <span class="chip">🔧 Drag-and-drop parts</span>
+        <span class="chip">💻 Visual block coding</span>
+        <span class="chip">🤖 Live simulation</span>
+        <span class="chip">📐 8 guided lessons</span>
+      </div>
+      <button id="btn-splash-start" class="btn-cta">Start Building <span class="cta-arrow">→</span></button>
+      <p class="splash-sub">No login required · Free forever · Works in your browser</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       NAVBAR
+  ═══════════════════════════════════════════════════════ -->
+  <nav id="navbar">
+    <!-- Left: Logo -->
+    <div class="nav-brand">
+      <svg width="28" height="28" viewBox="0 0 32 32">
+        <rect x="5" y="8" width="22" height="17" rx="4" fill="#3B82F6"/>
+        <circle cx="11" cy="16" r="2.8" fill="#1E3A5F"/>
+        <circle cx="21" cy="16" r="2.8" fill="#1E3A5F"/>
+        <circle cx="11" cy="16" r="1.1" fill="#93C5FD"/>
+        <circle cx="21" cy="16" r="1.1" fill="#93C5FD"/>
+        <rect x="1" y="12" width="4" height="7" rx="2" fill="#2563EB"/>
+        <rect x="27" y="12" width="4" height="7" rx="2" fill="#2563EB"/>
+        <line x1="16" y1="1" x2="16" y2="8" stroke="#3B82F6" stroke-width="2"/>
+        <circle cx="16" cy="1" r="2" fill="#F97316"/>
+      </svg>
+      <span id="logo"><span class="logo-robo">Robo</span><span class="logo-builder">Builder</span></span>
+    </div>
+
+    <!-- Center: Tab buttons -->
+    <div id="tab-btns">
+      <button class="tab-btn active" data-tab="build">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+        Build
+      </button>
+      <button class="tab-btn" data-tab="code">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Code
+      </button>
+    </div>
+
+    <!-- Right: actions -->
+    <div class="nav-right">
+      <button id="btn-lessons" title="Lessons & Challenges">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+        Lessons
+      </button>
+      <button id="btn-theme-toggle" class="btn-theme-toggle" title="Toggle dark mode">
+        <svg id="theme-icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        <svg id="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+      <span id="autosave-indicator" class="autosave-badge">Saved</span>
+      <div id="nav-code-actions">
+        <button class="btn-nav-outline" id="btn-download" title="Download code">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download
+        </button>
+        <button class="btn-nav-outline" id="btn-export" title="Export full project">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+        <button class="btn-nav-outline" id="btn-import" title="Import project">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/><polyline points="7 14 12 9 17 14"/><line x1="12" y1="9" x2="12" y2="21"/></svg>
+          Import
+        </button>
+        <input type="file" id="import-file-input" accept=".json" hidden>
+        <button class="btn-nav-primary" id="btn-run">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>
+          Run
+        </button>
+        <button class="btn-nav-outline" id="btn-stop-sim" style="display:none">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+          Stop
+        </button>
+        <button class="btn-nav-outline" id="btn-reset-sim">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 019-9 9 9 0 016.3 2.55L21 8"/><path d="M21 3v5h-5"/></svg>
+          Reset
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════════
+       BUILD TAB
+  ═══════════════════════════════════════════════════════ -->
+  <div id="view-build" class="view active">
+
+    <div id="build-toolbar">
+      <div class="tb-group">
+        <button class="tool-btn active" data-tool="select" title="Select (S)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-4 7z"/></svg>
+          Select
+        </button>
+        <button class="tool-btn" data-tool="delete" title="Delete (Del)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+          Delete
+        </button>
+      </div>
+      <div class="tb-divider"></div>
+      <div class="tb-group">
+        <button id="btn-undo" class="tool-btn" title="Undo (Ctrl+Z)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg>
+          Undo
+        </button>
+        <button id="btn-redo" class="tool-btn" title="Redo (Ctrl+Y)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"/></svg>
+          Redo
+        </button>
+      </div>
+      <div class="tb-divider"></div>
+      <div class="tb-group">
+        <button id="btn-starter-robot" class="tool-btn tool-btn-accent" title="Load a starter robot">⭐ Starter Bot</button>
+        <button id="btn-save-robot" class="tool-btn" title="Save robot">💾 Save</button>
+        <button id="btn-load-robot" class="tool-btn" title="Load robot">📂 Load</button>
+      </div>
+      <div class="tb-divider"></div>
+      <!-- Hidden wire tool button for programmatic activation -->
+      <button class="tool-btn" data-tool="wire" style="display:none" title="Wire Tool (W)">Wire</button>
+      <button id="resetCameraBtn" class="tool-btn" title="Reset camera view (Home key)">⟲ Camera</button>
+      <button id="btn-reset-build" class="tool-btn tool-btn-danger">🗑 Clear</button>
+      <span id="build-hint" class="tb-hint">Drag parts onto the canvas · R = rotate · W = wire tool · Right-click drag = orbit view</span>
+    </div>
+
+    <div id="build-body">
+
+      <!-- Left: Parts panel -->
+      <div id="parts-panel">
+        <div class="panel-hdr">
+          <h3>Parts</h3>
+          <span id="parts-count" class="panel-badge">0 placed</span>
+        </div>
+        <div id="parts-list"></div>
+        <div id="robot-status"></div>
+        <div id="diagnostics-panel"></div>
+      </div>
+
+      <!-- Center: Build canvas -->
+      <div id="build-canvas-wrap">
+        <canvas id="build-canvas"></canvas>
+      </div>
+
+      <!-- Right: Field preview + Properties -->
+      <div id="build-right-panel">
+        <div id="build-field-preview">
+          <div class="panel-hdr">
+            <h3>Field Preview</h3>
+            <span id="build-lesson-label" class="panel-badge">Lesson 1</span>
+          </div>
+          <div id="build-sim-thumb-wrap">
+            <canvas id="build-sim-thumb" width="220" height="130"></canvas>
+          </div>
+        </div>
+        <div id="props-panel">
+          <div class="panel-hdr">
+            <h3>Properties</h3>
+          </div>
+          <div id="props-content"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       CODE TAB
+  ═══════════════════════════════════════════════════════ -->
+  <div id="view-code" class="view">
+    <div id="code-body">
+
+      <!-- Left: Side-by-side Lesson + Blocks panels -->
+      <div id="blocks-panel">
+
+        <!-- Lesson pane (left half) -->
+        <div id="lesson-pane" class="code-panel-pane active">
+          <div class="code-subpanel-hdr">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+            Lesson
+          </div>
+          <div id="lesson-pane-progress">
+            <div id="lesson-pane-fill"></div>
+            <span id="lesson-pane-text">0 / 8</span>
+          </div>
+          <div id="lesson-pane-content"></div>
+          <div id="lesson-pane-footer">
+            <div id="lesson-pane-nav">
+              <button id="btn-pane-prev">← Prev</button>
+              <span id="lesson-pane-num">1 / 8</span>
+              <button id="btn-pane-next">Next →</button>
+            </div>
+            <button id="btn-pane-hint" class="btn-hint">💡 Hint</button>
+            <div id="lesson-pane-hint-box" hidden></div>
+            <button id="btn-pane-complete">✓ Mark Complete</button>
+          </div>
+        </div>
+
+        <!-- Blocks pane (right half) — drop blocks here to delete -->
+        <div id="blocks-pane" class="code-panel-pane active">
+          <div class="code-subpanel-hdr">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+            Blocks
+          </div>
+          <div id="blocks-list">
+            <!-- Populated by app.js -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Center: Blockly workspace -->
+      <div id="blockly-column">
+        <div id="blockly-panel"></div>
+        <div id="code-preview-bar">
+          <button id="btn-toggle-preview" class="preview-toggle">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Show JS
+          </button>
+          <pre id="code-preview" hidden></pre>
+        </div>
+      </div>
+
+      <!-- Right: Field preview + Debug console + Hardware panel -->
+      <div id="code-right-panel">
+
+        <!-- 1. Field viewer (top) -->
+        <div id="field-panel">
+          <div class="panel-hdr">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <h3>Field Preview</h3>
+              <span id="code-lesson-label" class="lesson-mini-label">Lesson 1</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div id="parts-indicator"></div>
+              <div id="sim-led" title="LED"></div>
+            </div>
+          </div>
+          <div id="sim-canvas-wrap">
+            <canvas id="sim-canvas" width="440" height="360"></canvas>
+            <div id="goal-banner" hidden>🎯 Goal Reached!</div>
+          </div>
+          <div id="sim-controls">
+            <button id="btn-run-panel" class="sim-btn sim-run">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>
+              Run
+            </button>
+            <button id="btn-stop-panel" class="sim-btn sim-stop">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+              Stop
+            </button>
+            <button id="btn-reset-panel" class="sim-btn sim-reset">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 019-9 9 9 0 016.3 2.55L21 8"/><path d="M21 3v5h-5"/></svg>
+              Reset
+            </button>
+            <label class="step-toggle" title="Step through blocks one at a time">
+              <input type="checkbox" id="chk-step-mode">
+              <span>Step</span>
+            </label>
+            <button id="btn-step" class="sim-btn sim-step" style="display:none">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 4l10 8-10 8z"/><line x1="19" y1="4" x2="19" y2="20"/></svg>
+              Next
+            </button>
+            <div class="speed-control">
+              <label for="speed-slider" class="speed-label">Speed</label>
+              <input type="range" id="speed-slider" min="0" max="3" step="1" value="1">
+              <span id="speed-value" class="speed-val">1x</span>
+            </div>
+          </div>
+          <div id="sim-status"></div>
+        </div>
+
+        <!-- 2. Debug Console (middle) -->
+        <div id="debug-console-panel">
+          <div id="robot-log-wrap">
+            <div id="robot-log-header">
+              <span>Debug Console</span>
+              <button id="btn-clear-log">✕ Clear</button>
+            </div>
+            <div id="robot-log"></div>
+          </div>
+        </div>
+
+        <!-- 3. Motors & Sensors (bottom) -->
+        <div id="hardware-panel">
+          <div class="panel-hdr">
+            <h3>Motors &amp; Sensors</h3>
+          </div>
+          <div id="hardware-list">
+            <div class="hw-item" style="color:var(--text-3);font-size:0.72rem;padding:12px 0">
+              Add parts in Build tab to see them here.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MAKE A BLOCK MODAL
+  ═══════════════════════════════════════════════════════ -->
+  <div id="make-block-overlay" hidden>
+    <div id="make-block-dialog" role="dialog" aria-modal="true" aria-labelledby="make-block-title">
+      <div id="make-block-header">
+        <span id="make-block-title">Make a Block</span>
+        <button id="make-block-close" aria-label="Close">✕</button>
+      </div>
+      <div id="make-block-preview-area">
+        <div id="make-block-preview"><!-- block rendered here by JS --></div>
+      </div>
+      <div id="make-block-options">
+        <button class="mbo-btn" data-type="input">
+          <div class="mbo-icon mbo-oval"></div>
+          <strong>Add an input</strong>
+          <span>number or text</span>
+        </button>
+        <button class="mbo-btn" data-type="bool">
+          <div class="mbo-icon mbo-diamond"></div>
+          <strong>Add an input</strong>
+          <span>boolean</span>
+        </button>
+        <button class="mbo-btn" data-type="label">
+          <div class="mbo-icon mbo-label-icon">text</div>
+          <strong>Add a label</strong>
+        </button>
+      </div>
+      <div id="make-block-footer">
+        <div id="make-block-actions">
+          <button id="make-block-cancel">Cancel</button>
+          <button id="make-block-ok">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       LESSONS DRAWER
+  ═══════════════════════════════════════════════════════ -->
+  <div id="lessons-modal">
+    <div id="lessons-drawer">
+      <div class="drawer-hdr">
+        <h2>📚 Lessons</h2>
+        <button id="btn-close-lessons">✕</button>
+      </div>
+      <div id="progress-strip">
+        <div id="progress-fill"></div>
+        <span id="progress-text">0 / 8</span>
+      </div>
+      <div id="lesson-content"></div>
+      <div id="lesson-footer">
+        <div id="lesson-nav">
+          <button id="btn-prev-lesson">← Prev</button>
+          <span id="lesson-num">1 / 8</span>
+          <button id="btn-next-lesson">Next →</button>
+        </div>
+        <button id="btn-hint-toggle" class="btn-hint">💡 Hint</button>
+        <div id="hint-box" hidden></div>
+        <button id="btn-complete-lesson">✓ Mark Complete</button>
+        <div id="sandbox-msg" hidden>
+          <strong>🎉 All Lessons Complete!</strong><br>Sandbox mode unlocked — code freely!
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       KEYBOARD SHORTCUTS OVERLAY
+  ═══════════════════════════════════════════════════════ -->
+  <div id="shortcuts-modal">
+    <div id="shortcuts-panel">
+      <div class="drawer-hdr">
+        <h2>Keyboard Shortcuts</h2>
+        <button id="btn-close-shortcuts">✕</button>
+      </div>
+      <div class="shortcuts-body">
+        <div class="shortcuts-section">
+          <h3>Build Tab</h3>
+          <div class="shortcut-row"><kbd>S</kbd><span>Select tool</span></div>
+          <div class="shortcut-row"><kbd>W</kbd><span>Wire tool</span></div>
+          <div class="shortcut-row"><kbd>R</kbd><span>Rotate selected part</span></div>
+          <div class="shortcut-row"><kbd>Del</kbd><span>Delete selected part</span></div>
+          <div class="shortcut-row"><kbd>Ctrl+Z</kbd><span>Undo</span></div>
+          <div class="shortcut-row"><kbd>Ctrl+Y</kbd><span>Redo</span></div>
+        </div>
+        <div class="shortcuts-section">
+          <h3>Code Tab</h3>
+          <div class="shortcut-row"><kbd>Ctrl+Z</kbd><span>Undo (Blockly)</span></div>
+          <div class="shortcut-row"><kbd>Ctrl+Y</kbd><span>Redo (Blockly)</span></div>
+        </div>
+        <div class="shortcuts-section">
+          <h3>General</h3>
+          <div class="shortcut-row"><kbd>?</kbd><span>Toggle this overlay</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confetti overlay -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- Scripts (dependency order) -->
+  <script src="js/partDefs.js"></script>
+  <script src="js/snapSystem.js"></script>
+  <script src="js/simEngine.js"></script>
+  <script src="js/sensorSystem.js"></script>
+  <script src="js/blockDefs.js"></script>
+  <script src="js/lessonData.js"></script>
+  <script src="js/lessonProgress.js"></script>
+  <script src="js/propertiesPanel.js"></script>
+  <script src="js/partRenderers2D.js"></script>
+  <script src="js/buildCanvas.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"
+          integrity="sha384-qOkzR5Ke/XkQxuGVJ9hpFEpDlcoLtWwVYhnJf06cLIZa2vaIptSqaubivErzmD5O"
+          crossorigin="anonymous"></script>
+  <script src="js/buildCanvas3D.js"></script>
+  <script src="js/simCanvas.js"></script>
+  <script src="js/codeRunner.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
