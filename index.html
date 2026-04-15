@@ -103,11 +103,11 @@
     <div id="tab-btns">
       <button class="tab-btn active" data-tab="build">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
-        Build
+        <span class="nav-label">Build</span>
       </button>
       <button class="tab-btn" data-tab="code">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-        Code
+        <span class="nav-label">Code</span>
       </button>
     </div>
 
@@ -115,7 +115,11 @@
     <div class="nav-right">
       <button id="btn-lessons" title="Lessons & Challenges">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
-        Lessons
+        <span class="nav-label">Lessons</span>
+      </button>
+      <button id="btn-replay-tutorial" title="Replay the coding tutorial">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16" fill="currentColor" stroke="none"/></svg>
+        <span class="nav-label">Tutorial</span>
       </button>
       <button id="btn-theme-toggle" class="btn-theme-toggle" title="Toggle dark mode">
         <svg id="theme-icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -125,28 +129,28 @@
       <div id="nav-code-actions">
         <button class="btn-nav-outline" id="btn-download" title="Download code">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download
+          <span class="nav-label">Download</span>
         </button>
         <button class="btn-nav-outline" id="btn-export" title="Export full project">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Export
+          <span class="nav-label">Export</span>
         </button>
         <button class="btn-nav-outline" id="btn-import" title="Import project">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/><polyline points="7 14 12 9 17 14"/><line x1="12" y1="9" x2="12" y2="21"/></svg>
-          Import
+          <span class="nav-label">Import</span>
         </button>
         <input type="file" id="import-file-input" accept=".json" hidden>
         <button class="btn-nav-primary" id="btn-run">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>
-          Run
+          <span class="nav-label">Run</span>
         </button>
         <button class="btn-nav-outline" id="btn-stop-sim" style="display:none">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-          Stop
+          <span class="nav-label">Stop</span>
         </button>
         <button class="btn-nav-outline" id="btn-reset-sim">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 019-9 9 9 0 016.3 2.55L21 8"/><path d="M21 3v5h-5"/></svg>
-          Reset
+          <span class="nav-label">Reset</span>
         </button>
       </div>
     </div>
@@ -287,6 +291,29 @@
             Show JS
           </button>
           <pre id="code-preview" hidden></pre>
+        </div>
+      </div>
+
+      <!-- Tutorial: sandwich column between Blockly and right panel -->
+      <div id="tutorial-right" hidden>
+        <div id="tutorial-right-inner">
+          <div id="tutorial-progress"
+               role="progressbar" aria-valuemin="1" aria-valuemax="8" aria-valuenow="1">
+            <div id="tutorial-progress-fill"></div>
+          </div>
+          <div id="tutorial-step-badge">
+            Step <span id="tut-step-num">1</span> of 8
+          </div>
+          <h3 id="tutorial-title"></h3>
+          <div id="tutorial-body"></div>
+          <div id="tutorial-hw-status" hidden aria-live="polite"></div>
+          <div id="tutorial-footer">
+            <button id="tut-btn-skip" class="tut-skip-btn" type="button">Skip</button>
+            <div id="tutorial-primary-btns">
+              <button id="tut-btn-helper" hidden type="button"></button>
+              <button id="tut-btn-next" class="tut-next-btn" type="button">Next →</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -486,5 +513,6 @@
   <script src="js/simCanvas.js"></script>
   <script src="js/codeRunner.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/tutorial.js"></script>
 </body>
 </html>

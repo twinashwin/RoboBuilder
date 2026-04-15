@@ -1500,6 +1500,9 @@
     const stop  = document.getElementById('btn-stop-sim');
     if (run)  run.style.display  = show ? '' : 'none';
     if (stop) stop.style.display = show ? 'none' : '';
+    // Zoom sim canvas while code is running
+    const wrap = document.getElementById('sim-canvas-wrap');
+    if (wrap) wrap.classList.toggle('sim-running', !show);
   }
 
   let _runRetryCount  = 0;
@@ -1731,6 +1734,7 @@
       renderLesson(currentLessonIdx);
       robotLog(`🏆 Lesson ${lesson.id} complete: "${lesson.title}" ${starString(stars)}`, 'info');
     }
+    window.dispatchEvent(new CustomEvent('robobuilder:goalreached'));
   }
 
   // ── Confetti ───────────────────────────────────────────────────────────────
@@ -1924,6 +1928,10 @@
   }
 
   // Expose globals
+  window._validateRobot   = validateRobot;
+  window._getRobotConfig  = () => robotConfig;
+  window._addBlockFromXml = addBlockFromXml;
+  window._switchTab       = switchTab;
   window._robotConfig  = robotConfig;
   window._extractCode  = extractCode;
   window._simStatus    = '';

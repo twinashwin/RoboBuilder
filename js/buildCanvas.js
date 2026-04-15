@@ -705,6 +705,45 @@ const BuildCanvas = (() => {
     ctx.fillStyle = '#06B6D4';
     ctx.beginPath(); ctx.arc(tx, ty, 5, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
+
+    // Show "Simulate real robotics" label if wiring a motor
+    if (fromPart.type === 'motor') {
+      _drawWireMotorLabel();
+    }
+  }
+
+  function _drawWireMotorLabel() {
+    const W = canvas.width, H = canvas.height;
+    const text = '⚡ Simulate real robotics';
+    const pad  = 14, r = 10;
+    ctx.save();
+    ctx.font = 'bold 15px Inter, sans-serif';
+    const tw = ctx.measureText(text).width;
+    const bw = tw + pad * 2, bh = 36;
+    const bx = (W - bw) / 2, by = H - bh - 18;
+    // Pill background
+    ctx.beginPath();
+    ctx.moveTo(bx + r, by);
+    ctx.lineTo(bx + bw - r, by);
+    ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + r);
+    ctx.lineTo(bx + bw, by + bh - r);
+    ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - r, by + bh);
+    ctx.lineTo(bx + r, by + bh);
+    ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - r);
+    ctx.lineTo(bx, by + r);
+    ctx.quadraticCurveTo(bx, by, bx + r, by);
+    ctx.closePath();
+    ctx.fillStyle   = 'rgba(59,130,246,0.92)';
+    ctx.shadowColor = 'rgba(59,130,246,0.5)';
+    ctx.shadowBlur  = 16;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // Text
+    ctx.fillStyle   = '#fff';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign    = 'center';
+    ctx.fillText(text, W / 2, by + bh / 2);
+    ctx.restore();
   }
 
   // ── Wire logic ─────────────────────────────────────────────────────────────

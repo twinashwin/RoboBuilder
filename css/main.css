@@ -1169,7 +1169,13 @@ html, body {
   position: relative;
   padding: 0 10px;
   flex-shrink: 0;
+  transform-origin: center top;
+  transform: scale(1);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   /* ensure sim canvas renders crisply */
+}
+#sim-canvas-wrap.sim-running {
+  transform: scale(1.06);
 }
 #sim-canvas {
   display: block;
@@ -1181,6 +1187,10 @@ html, body {
   box-shadow: var(--shadow-sm);
   background: #fff;
   image-rendering: -webkit-optimize-contrast;
+  transition: box-shadow 0.35s ease;
+}
+#sim-canvas-wrap.sim-running #sim-canvas {
+  box-shadow: 0 0 0 2px #3B82F6, 0 8px 28px rgba(59,130,246,0.22);
 }
 
 #goal-banner {
@@ -2071,4 +2081,472 @@ button:disabled { opacity: 0.35; cursor: not-allowed !important; }
 }
 #blocks-pane.blocks-pane-dropzone .code-subpanel-hdr svg {
   color: var(--red);
+}
+
+/* ═══════════════════════════════════════════════════════
+   TUTORIAL — right-panel mode
+═══════════════════════════════════════════════════════ */
+
+/* Navbar replay button */
+#btn-replay-tutorial {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  height: 30px;
+  background: none;
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r-lg);
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+#btn-replay-tutorial:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Tutorial sandwich column — sits between Blockly and right panel */
+#tutorial-right:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  animation: tut-panel-in 0.22s ease;
+}
+@keyframes tut-panel-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+#tutorial-right-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem 1.25rem 1rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Progress bar */
+#tutorial-progress {
+  height: 4px;
+  background: var(--bg-surface);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+#tutorial-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+  width: 0%;
+}
+
+/* Step badge */
+#tutorial-step-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* Title */
+#tutorial-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-1);
+}
+
+/* Body */
+#tutorial-body {
+  font-size: 0.85rem;
+  color: var(--text-2);
+  line-height: 1.6;
+  flex: 1;
+}
+#tutorial-body strong { color: var(--text-1); }
+#tutorial-body br + br { display: block; margin-top: 0.4rem; content: ''; }
+#tutorial-body .block-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  vertical-align: middle;
+  color: #fff;
+}
+#tutorial-body .block-chip.motor   { background: #4C97FF; }
+#tutorial-body .block-chip.control { background: #FFAB19; color: #1a1a1a; }
+#tutorial-body .block-chip.fn      { background: #9966FF; }
+
+/* Hardware status (step 1) */
+#tutorial-hw-status:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--bg-surface);
+  border-radius: var(--r-lg);
+}
+.tut-hw-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.82rem;
+  color: var(--text-2);
+}
+.tut-hw-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  font-size: 0.68rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.tut-hw-badge.ok   { background: #22c55e22; color: #22c55e; }
+.tut-hw-badge.warn { background: #f59e0b22; color: #f59e0b; }
+.tut-hw-goto-build {
+  font-size: 0.79rem;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 0.3rem;
+  text-align: left;
+}
+
+/* Footer */
+#tutorial-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#tutorial-primary-btns { display: flex; align-items: center; gap: 0.5rem; }
+
+.tut-skip-btn {
+  background: none;
+  border: none;
+  font-size: 0.76rem;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 0.35rem 0.4rem;
+  border-radius: var(--r-lg);
+  transition: color 0.15s;
+}
+.tut-skip-btn:hover { color: var(--text-2); }
+
+#tut-btn-helper {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--r-lg);
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+#tut-btn-helper:hover { background: var(--bg-base); }
+
+.tut-next-btn {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  font-size: 0.83rem;
+  font-weight: 700;
+  padding: 0.48rem 1rem;
+  border-radius: var(--r-lg);
+  cursor: pointer;
+  transition: filter 0.15s;
+  white-space: nowrap;
+}
+.tut-next-btn:hover  { filter: brightness(1.12); }
+.tut-next-btn:active { filter: brightness(0.95); }
+.tut-next-btn.cta { background: #22c55e; }
+
+/* ── Element highlight ─────────────────────────────────────
+   filter + inset shadow: both render inside/on the element,
+   immune to parent overflow:hidden clipping. */
+.tut-highlight {
+  transition: none !important;   /* suppress block-card's own box-shadow transition */
+  animation: tut-pulse 1.1s ease-in-out infinite !important;
+  position: relative;
+  z-index: 5;
+}
+@keyframes tut-pulse {
+  0%, 100% {
+    filter: brightness(1.4);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.9);
+  }
+  50% {
+    filter: brightness(0.72);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.05);
+  }
+}
+
+/* Navbar button highlight (same approach, slightly different z-index) */
+.tut-highlight-nav {
+  transition: none !important;
+  animation: tut-pulse-nav 1.1s ease-in-out infinite !important;
+  position: relative;
+  z-index: 200;
+}
+@keyframes tut-pulse-nav {
+  0%, 100% {
+    filter: brightness(1.4);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.9);
+  }
+  50% {
+    filter: brightness(0.72);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.05);
+  }
+}
+
+/* Tutorial-complete card (shown after goal is reached) */
+#tutorial-complete-card {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 380px;
+  max-width: calc(100vw - 2rem);
+  background: var(--bg-card);
+  border-radius: var(--r-xl);
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 8px 48px rgba(0, 0, 0, 0.55);
+  z-index: 9010;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: tut-panel-in 0.3s ease;
+}
+#tutorial-complete-card h3 { margin: 0; font-size: 1.3rem; }
+#tutorial-complete-card p  { font-size: 0.9rem; color: var(--text-2); margin: 0; }
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE / MOBILE
+   1280px → reduce panel widths
+    960px → single-pane code left (hide lesson pane)
+    768px → portrait tablet / phone  (vertical stack layout)
+    480px → phone portrait (extra-compact)
+═══════════════════════════════════════════════════════════════ */
+
+/* ── 1280px: shrink panels to fit smaller desktops ─────────── */
+@media (max-width: 1280px) {
+  :root {
+    --code-left-w:  380px;
+    --code-right-w: 360px;
+    --right-w:      240px;
+  }
+}
+
+/* ── 1050px: further shrink ─────────────────────────────────── */
+@media (max-width: 1050px) {
+  :root {
+    --code-left-w:  300px;
+    --code-right-w: 300px;
+    --sidebar-w:    190px;
+    --right-w:      200px;
+  }
+}
+
+/* ── 960px: collapse lesson pane to save horizontal space ───── */
+@media (max-width: 960px) {
+  :root {
+    --code-left-w: 200px;  /* blocks-pane only */
+  }
+  /* Hide lesson pane — still accessible via the Lessons drawer */
+  #lesson-pane { display: none !important; }
+  #blocks-pane { flex: 1; border-left: none; }
+}
+
+/* ── 768px: tablet portrait / large phone ──────────────────── */
+@media (max-width: 768px) {
+
+  /* ·· Navbar: single row, compact ·· */
+  #navbar { padding: 0 10px; gap: 6px; }
+  .nav-brand { min-width: 0; gap: 6px; }
+  /* Hide logo text on narrow screens — icon stays */
+  #logo { display: none; }
+  /* Tab buttons: pull out of absolute centering, sit inline */
+  #tab-btns {
+    position: static;
+    transform: none;
+    flex-shrink: 0;
+    gap: 2px;
+  }
+  .tab-btn { padding: 6px 10px; font-size: 0.8rem; gap: 4px; }
+  /* Nav-right: allow horizontal scroll so nothing is lost */
+  .nav-right {
+    margin-left: auto;
+    gap: 3px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  /* Icon-only nav buttons — hide text labels */
+  .nav-label { display: none; }
+  /* Make nav buttons square icon buttons */
+  #btn-lessons, #btn-replay-tutorial, #btn-theme-toggle,
+  #btn-download, #btn-export, #btn-import,
+  #btn-run, #btn-stop-sim, #btn-reset-sim {
+    padding: 6px 8px;
+    gap: 0;
+  }
+  #nav-code-actions { gap: 3px; }
+
+  /* ·· Build toolbar: allow wrap + hide hint text ·· */
+  #build-toolbar { height: auto; flex-wrap: wrap; padding: 6px 10px; gap: 4px; }
+  .tb-hint { display: none; }
+  .tool-btn { padding: 5px 9px; font-size: 0.78rem; }
+
+  /* ·· Build tab: vertical stack ·· */
+  #build-body { flex-direction: column; overflow-y: auto; }
+  #parts-panel {
+    width: 100%;
+    height: auto;
+    max-height: 220px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  #build-canvas-wrap { min-height: 320px; flex: 1; }
+  #build-right-panel {
+    width: 100%;
+    flex-shrink: 0;
+    height: auto;
+    flex-direction: row;   /* preview + properties side-by-side */
+    border-left: none;
+    border-top: 1px solid var(--border);
+    max-height: 240px;
+  }
+  #build-field-preview, #props-panel {
+    flex: 1;
+    overflow-y: auto;
+    min-width: 0;
+  }
+  /* Shrink build thumbnail to fit */
+  #build-sim-thumb-wrap { text-align: center; }
+  #build-sim-thumb { max-width: 100%; height: auto; }
+
+  /* ·· Code tab: vertical stack ·· */
+  #code-body { flex-direction: column; overflow-y: auto; overflow-x: hidden; }
+
+  /* Blocks panel: compact strip */
+  #blocks-panel {
+    width: 100%;
+    height: 200px;
+    flex-shrink: 0;
+    flex-direction: column;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  #blocks-pane { flex: 1; overflow-y: auto; }
+  #blocks-list { padding: 6px; gap: 4px; }
+
+  /* Blockly workspace: full width, fixed height */
+  #blockly-column { min-height: 340px; min-width: 0; flex-shrink: 0; }
+  #blockly-panel  { min-height: 300px; }
+
+  /* Tutorial sandwich panel: full width when shown */
+  #tutorial-right:not([hidden]) {
+    width: 100%;
+    border-left: none;
+    border-right: none;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Code right panel: full width */
+  #code-right-panel {
+    width: 100%;
+    flex-shrink: 0;
+    height: auto;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Sim canvas: fill container width */
+  #sim-canvas { max-width: 100%; height: auto; }
+  #sim-canvas-wrap { overflow: visible; }
+
+  /* Debug console: shorter */
+  #robot-log-wrap { height: 100px; }
+
+  /* Hardware panel: auto height */
+  #hardware-panel { flex: 0 0 auto; max-height: 180px; overflow-y: auto; }
+
+  /* Code preview bar: smaller */
+  #code-preview-bar { flex-shrink: 0; }
+
+  /* Lessons drawer: full-width on mobile */
+  #lessons-drawer {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - var(--nav-h) - 8px);
+    border-radius: var(--r-lg);
+  }
+}
+
+/* ── 480px: phone portrait (extra-compact) ─────────────────── */
+@media (max-width: 480px) {
+  /* Keep the logo SVG but shrink it */
+  .nav-brand svg { width: 22px; height: 22px; }
+  .tab-btn { padding: 5px 8px; font-size: 0.76rem; }
+
+  /* Parts panel: shorter */
+  #parts-panel { max-height: 180px; }
+
+  /* Blockly: taller so it's actually usable */
+  #blockly-column { min-height: 380px; }
+
+  /* Blocks panel: a bit taller */
+  #blocks-panel { height: 180px; }
+
+  /* Debug console: minimal */
+  #robot-log-wrap { height: 80px; }
+
+  /* Build canvas: taller */
+  #build-canvas-wrap { min-height: 280px; }
+
+  /* Build right panel: stack vertically on very small screens */
+  #build-right-panel { flex-direction: column; max-height: none; }
+  #build-field-preview, #props-panel { min-height: 120px; }
+
+  /* Sim controls: wrap buttons */
+  #sim-controls { flex-wrap: wrap; gap: 4px; }
+
+  /* Tutorial panel inner: tighter padding */
+  #tutorial-right-inner { padding: 0.85rem 1rem 0.75rem; gap: 0.65rem; }
+
+  /* Splash: compact text + smaller decorative orbs */
+  .splash-title { font-size: 1.8rem; }
+  .splash-tagline { font-size: 0.8rem; }
+  .splash-orb-1 { width: 240px; height: 240px; }
+  .splash-orb-2 { width: 180px; height: 180px; }
 }
