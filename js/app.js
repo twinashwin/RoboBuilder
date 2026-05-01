@@ -12,14 +12,6 @@
   let blocklyWorkspace = null;
   let blocklyReady     = false;
   let robotConfig      = { parts: [] };
-  let completedLessons = (() => {
-    try { return new Set(JSON.parse(localStorage.getItem('robobuilder_progress') || '[]')); }
-    catch (e) { return new Set(); }
-  })();
-  let lessonStars = (() => {
-    try { return JSON.parse(localStorage.getItem('robobuilder_stars') || '{}'); }
-    catch (e) { return {}; }
-  })();
 
   // ── Theme colors for canvas (read by simCanvas / buildCanvas) ────────────────
   const LIGHT_COLORS = {
@@ -100,12 +92,118 @@
 
   // ── Boot ─────────────────────────────────────────────────────────────────────
   window.addEventListener('load', () => {
+    // ── Auto-login check: returning users skip tutorials ────────────────────
+    const _userLoggedIn = !!(window._isLoggedIn && window._isLoggedIn());
+    if (_userLoggedIn) {
+      localStorage.setItem('robobuilder_build_tutorial_v1', 'done');
+      localStorage.setItem('robobuilder_tutorial_v1', 'done');
+    }
+
     // Splash
     document.getElementById('btn-splash-start').addEventListener('click', () => {
       const splash = document.getElementById('splash-screen');
       splash.style.opacity = '0';
       splash.style.transition = 'opacity 0.4s ease';
       setTimeout(() => { splash.hidden = true; }, 400);
+
+      // After splash dismissed: start build tutorial for first-time users
+      if (!_userLoggedIn && window._buildTutorialShouldAutoStart && window._buildTutorialShouldAutoStart()) {
+        setTimeout(() => {
+          if (window._startBuildTutorial) window._startBuildTutorial();
+        }, 500);
+      }
+
+      // Initial parts-panel lock state. The dynamic resolver (_setPartsLockState)
+      // computes the correct per-item lock based on login + tutorial state.
+      // We re-evaluate here rather than at module load because populatePartsPanel
+      // ran during boot and the DOM is now ready.
+      _setPartsLockState();
+    });
+
+    // ── Dynamic parts-panel lock state ────────────────────────────────────────
+    // Locks/unlocks the parts panel based on three rules, evaluated in priority:
+    //   1. Logged-in user → all unlocked, no tooltip.
+    //   2. Build tutorial active → only the current step's partType unlocked,
+    //      everything else locked. (When the step has partType=null — welcome
+    //      or wiring — ALL parts are locked.)
+    //   3. Else (no tutorial, not logged in) → all locked, "Sign up to unlock"
+    //      tooltip + click-to-show-login-modal.
+    //
+    // This is wired to fire on every state change: page load, tutorial start /
+    // step-change / close, and login success.
+    function _setPartsLockState() {
+      const list = document.getElementById('parts-list');
+      if (!list) return;
+
+      const loggedIn      = !!(window._isLoggedIn && window._isLoggedIn());
+      const tutorialActive = !!(window._buildTutorialActive && window._buildTutorialActive());
+      const allowedType   = tutorialActive && window._buildTutorialCurrentPartType
+        ? window._buildTutorialCurrentPartType()
+        : null;
+
+      const items = list.querySelectorAll('.part-item');
+
+      if (loggedIn) {
+        // Rule 1: all unlocked.
+        list.classList.remove('parts-locked');
+        items.forEach(it => it.classList.remove('part-item-locked', 'part-item-allowed'));
+        if (window._unlockPartsPanel) window._unlockPartsPanel();
+        return;
+      }
+
+      if (tutorialActive) {
+        // Rule 2: per-part lock. Remove the container `.parts-locked` class so
+        // the login-prompt tooltip and click-intercept don't fire during the
+        // tutorial — clicks on locked items are silently ignored by the
+        // mousedown handler below.
+        list.classList.remove('parts-locked');
+        if (window._unlockPartsPanel) window._unlockPartsPanel();
+        items.forEach(it => {
+          const t = it.dataset.partType;
+          if (allowedType && t === allowedType) {
+            it.classList.remove('part-item-locked');
+            it.classList.add('part-item-allowed');
+          } else {
+            it.classList.add('part-item-locked');
+            it.classList.remove('part-item-allowed');
+          }
+        });
+        return;
+      }
+
+      // Rule 3: all locked, with login prompt.
+      items.forEach(it => {
+        it.classList.add('part-item-locked');
+        it.classList.remove('part-item-allowed');
+      });
+      // Container class enables the "Sign up to unlock" tooltip + click-to-login.
+      if (window._lockPartsPanel) window._lockPartsPanel();
+    }
+    // Expose for buildTutorial.js (so it can call after exposing its own state)
+    window._setPartsLockState = _setPartsLockState;
+
+    // ── Tutorial state-change → re-evaluate lock ──────────────────────────────
+    window.addEventListener('robobuilder:buildtutorial-start',       _setPartsLockState);
+    window.addEventListener('robobuilder:buildtutorial-step-change', _setPartsLockState);
+    window.addEventListener('robobuilder:buildtutorial-closed',      _setPartsLockState);
+    // `-done` is dispatched by endTutorial() before `-closed`. Re-evaluate on
+    // both: when the tutorial completes naturally, isActive flips to false, so
+    // by the time -closed fires the panel re-locks correctly. The -done listener
+    // is kept here as a no-op safety call (some flows fire only -done).
+    window.addEventListener('robobuilder:buildtutorial-done',        _setPartsLockState);
+
+    // ── Login success → re-evaluate lock (independent unlock path) ────────────
+    window.addEventListener('robobuilder:login-success', _setPartsLockState);
+
+    // ── Code-tutorial-complete → soft login prompt ────────────────────────────
+    // Nudge users to sign up after the code tutorial. Lock state is governed
+    // entirely by _setPartsLockState now — no re-lock here.
+    window.addEventListener('robobuilder:tutorial-complete', () => {
+      if (!window._isLoggedIn || !window._isLoggedIn()) {
+        setTimeout(() => {
+          if (window._showLoginModal) window._showLoginModal();
+        }, 1500);
+      }
     });
 
     // Build canvas — use 3D if available, else 2D
@@ -148,6 +246,79 @@
     document.getElementById('import-file-input').addEventListener('change', handleImportFile);
     document.getElementById('btn-theme-toggle').addEventListener('click', toggleTheme);
 
+    // Sign In / Account button (visible on both Build and Code tabs).
+    // - Logged out: opens login modal at the Login view.
+    // - Logged in:  toggles a small dropdown menu with the user's email and
+    //               a "Sign out" action.
+    const loginBtn = document.getElementById('btn-login');
+    if (loginBtn) {
+      let _accountMenu = null;
+
+      const closeAccountMenu = () => {
+        if (_accountMenu && _accountMenu.parentNode) {
+          _accountMenu.parentNode.removeChild(_accountMenu);
+        }
+        _accountMenu = null;
+        document.removeEventListener('mousedown', _onDocMouseDownForMenu, true);
+      };
+      const _onDocMouseDownForMenu = (e) => {
+        if (_accountMenu && !_accountMenu.contains(e.target) && e.target !== loginBtn && !loginBtn.contains(e.target)) {
+          closeAccountMenu();
+        }
+      };
+
+      const openAccountMenu = () => {
+        if (_accountMenu) { closeAccountMenu(); return; }
+        const email = (window._getLoggedInEmail && window._getLoggedInEmail()) || '';
+        _accountMenu = document.createElement('div');
+        _accountMenu.id = 'account-menu';
+        _accountMenu.innerHTML =
+          '<div class="account-menu-email" title="' + email.replace(/"/g, '&quot;') + '">' + email + '</div>' +
+          '<button type="button" class="account-menu-item" id="account-menu-signout">' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
+            'Sign out</button>';
+        document.body.appendChild(_accountMenu);
+        // Position relative to the button.
+        const r = loginBtn.getBoundingClientRect();
+        _accountMenu.style.position = 'fixed';
+        _accountMenu.style.top   = (r.bottom + 6) + 'px';
+        _accountMenu.style.right = (window.innerWidth - r.right) + 'px';
+        document.getElementById('account-menu-signout').addEventListener('click', async () => {
+          closeAccountMenu();
+          if (window._signOut) await window._signOut();
+        });
+        // Close on outside click.
+        setTimeout(() => {
+          document.addEventListener('mousedown', _onDocMouseDownForMenu, true);
+        }, 0);
+      };
+
+      const refreshLoginBtn = () => {
+        const loggedIn = !!(window._isLoggedIn && window._isLoggedIn());
+        loginBtn.classList.toggle('is-logged-in', loggedIn);
+        const label = loginBtn.querySelector('.nav-label');
+        if (label) label.textContent = loggedIn ? 'Account' : 'Sign In';
+        loginBtn.title = loggedIn ? 'Account (click for menu)' : 'Sign in / create account';
+        // If a menu is open and we're now logged out, close it.
+        if (!loggedIn && _accountMenu) closeAccountMenu();
+      };
+      refreshLoginBtn();
+      loginBtn.addEventListener('click', () => {
+        const loggedIn = !!(window._isLoggedIn && window._isLoggedIn());
+        if (loggedIn) {
+          openAccountMenu();
+        } else {
+          if (window._showLoginModal) window._showLoginModal({ initialView: 'login' });
+        }
+      });
+      window.addEventListener('robobuilder:login-success', refreshLoginBtn);
+      window.addEventListener('robobuilder:logout',        () => {
+        refreshLoginBtn();
+        // After logout, re-evaluate parts-panel lock state.
+        if (window._setPartsLockState) window._setPartsLockState();
+      });
+    }
+
     // Sync theme toggle icon on load
     if (savedTheme === 'dark') {
       const sun  = document.getElementById('theme-icon-sun');
@@ -182,48 +353,6 @@
         btnStep.style.display = chkStep.checked ? '' : 'none';
       });
       btnStep.addEventListener('click', () => CodeRunner.step());
-    }
-
-    // Lessons drawer (still available for Build tab / navbar button)
-    document.getElementById('btn-lessons').addEventListener('click', openLessonsDrawer);
-    document.getElementById('btn-close-lessons').addEventListener('click', closeLessonsDrawer);
-    document.getElementById('lessons-modal').addEventListener('click', e => {
-      if (e.target === document.getElementById('lessons-modal')) closeLessonsDrawer();
-    });
-
-    // Lesson navigation (drawer)
-    document.getElementById('btn-prev-lesson').addEventListener('click', () => navigateLesson(-1));
-    document.getElementById('btn-next-lesson').addEventListener('click', () => navigateLesson(+1));
-    document.getElementById('btn-complete-lesson').addEventListener('click', onCompleteLesson);
-
-    // Hint toggle (drawer)
-    const hintBox    = document.getElementById('hint-box');
-    const hintToggle = document.getElementById('btn-hint-toggle');
-    if (hintToggle) {
-      hintToggle.addEventListener('click', () => {
-        const hidden = hintBox.hidden;
-        hintBox.hidden = !hidden;
-        hintToggle.textContent = hidden ? '💡 Hide Hint' : '💡 Hint';
-      });
-    }
-
-    // ── Inline lesson pane (Code tab left panel) ───────────────────────────
-    // Tab switcher removed — both lesson and blocks panes are always visible.
-
-    // Inline lesson navigation
-    document.getElementById('btn-pane-prev').addEventListener('click', () => navigateLesson(-1));
-    document.getElementById('btn-pane-next').addEventListener('click', () => navigateLesson(+1));
-    document.getElementById('btn-pane-complete').addEventListener('click', onCompleteLesson);
-
-    // Inline hint toggle
-    const paneHintBox    = document.getElementById('lesson-pane-hint-box');
-    const paneHintToggle = document.getElementById('btn-pane-hint');
-    if (paneHintToggle && paneHintBox) {
-      paneHintToggle.addEventListener('click', () => {
-        const hidden = paneHintBox.hidden;
-        paneHintBox.hidden = !hidden;
-        paneHintToggle.textContent = hidden ? '💡 Hide Hint' : '💡 Hint';
-      });
     }
 
     // Undo/Redo keyboard (works on both Build and Code tabs)
@@ -267,6 +396,32 @@
         document.getElementById('shortcuts-modal').classList.toggle('open');
       }
     });
+
+    // Tab key toggles between Build and Code tabs.
+    // Carve-out: don't hijack Tab when focus is on a form field, contenteditable,
+    // or anywhere inside the Blockly workspace (Blockly relies on Tab for field nav).
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Tab') return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+
+      const t = e.target;
+      if (!t) return;
+      const tag = t.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return;
+      if (t.isContentEditable) return;
+      // Blockly: any focus inside the injected workspace
+      if (typeof t.closest === 'function' && t.closest('.blocklyMainBackground, .blocklyHtmlInput, .blocklyDiv, #blocks-svg-area, #blockly-area')) return;
+      // Modals / overlays open: don't toggle
+      if (document.getElementById('shortcuts-modal')?.classList.contains('open')) return;
+      const loginOverlay = document.getElementById('login-overlay');
+      if (loginOverlay && !loginOverlay.hasAttribute('hidden')) return;
+      const makeBlockOverlay = document.getElementById('make-block-overlay');
+      if (makeBlockOverlay && !makeBlockOverlay.hasAttribute('hidden')) return;
+
+      e.preventDefault();
+      switchTab(activeTab === 'build' ? 'code' : 'build');
+    });
+
     document.getElementById('btn-close-shortcuts').addEventListener('click', () => {
       document.getElementById('shortcuts-modal').classList.remove('open');
     });
@@ -291,10 +446,11 @@
     // Make a Block modal
     _initMakeBlockModal();
 
-    // Render first lesson
+    // Set up sim arena from first lesson config
     renderLesson(0);
 
     window._simStatus = '';
+    window._activeTab = activeTab;
   });
 
   // ── Build sim thumb ────────────────────────────────────────────────────────
@@ -405,6 +561,7 @@
   function switchTab(tab) {
     if (tab === activeTab) return;
     activeTab = tab;
+    window._activeTab = tab;
 
     ['build', 'code'].forEach(name => {
       document.getElementById('view-' + name).classList.toggle('active', name === tab);
@@ -412,6 +569,12 @@
     document.querySelectorAll('.tab-btn').forEach(btn =>
       btn.classList.toggle('active', btn.dataset.tab === tab)
     );
+
+    // Strip the post-build-tutorial pulse from whichever tab the user just landed on.
+    // Centralized here so EVERY entry point (tab click, "Go to Code Tab" CTA, Tab-key,
+    // programmatic switch) clears the pulse — not just direct tab-button clicks.
+    const arrivedBtn = document.querySelector('.tab-btn[data-tab="' + tab + '"]');
+    if (arrivedBtn) arrivedBtn.classList.remove('tut-highlight-nav');
 
     // Show/hide nav code actions
     const codeActions = document.getElementById('nav-code-actions');
@@ -989,6 +1152,12 @@
       item.addEventListener('mousedown', e => {
         e.preventDefault();
         if (item.classList.contains('part-item-disabled')) return;
+        // Per-item lock: during the build tutorial, only the active step's
+        // part type is allowed; outside the tutorial, all parts are locked
+        // until login. Locked clicks are silently rejected during tutorial
+        // (the container-level `.parts-locked` capture-click handler in
+        // loginModal.js handles the no-tutorial case by popping the modal).
+        if (item.classList.contains('part-item-locked')) return;
         _BC.startNewPartDrag(def.type, e.clientX, e.clientY);
       });
 
@@ -1317,161 +1486,24 @@
     });
   }
 
-  // ── Lessons drawer ─────────────────────────────────────────────────────────
-
-  function openLessonsDrawer() {
-    document.getElementById('lessons-modal').classList.add('open');
-  }
-  function closeLessonsDrawer() {
-    document.getElementById('lessons-modal').classList.remove('open');
-  }
-
-  // ── Lesson system ──────────────────────────────────────────────────────────
+  // ── Lesson sim config (simplified — UI removed, only sim setup retained) ──
 
   function renderLesson(idx) {
     const lesson = LESSONS[idx];
     if (!lesson) return;
     currentLessonIdx = idx;
-
-    const done = completedLessons.has(lesson.id);
-    const bestStars = lessonStars[lesson.id] || 0;
-    const starsHtml = bestStars > 0
-      ? ` <span class="lesson-stars" title="${bestStars}/3 stars">${starString(bestStars)}</span>`
-      : (lesson.starCriteria ? ` <span class="lesson-stars lesson-stars-empty" title="Complete to earn stars">☆☆☆</span>` : '');
-    const content = document.getElementById('lesson-content');
-
-    content.innerHTML = `
-      <div class="lesson-header">
-        <span class="lesson-num-badge">Lesson ${lesson.id}</span>
-        <h2 class="lesson-title">${lesson.title}${done ? ' <span class="lesson-done-badge">✓ Done</span>' : ''}${starsHtml}</h2>
-        <p class="lesson-objective">${lesson.objective}</p>
-      </div>
-      <div class="lesson-body">${lesson.content}</div>
-    `;
-
-    const hintBox = document.getElementById('hint-box');
-    const hintToggle = document.getElementById('btn-hint-toggle');
-    if (hintBox) {
-      hintBox.innerHTML = `
-        <div class="hint-content">
-          <strong>💡 Hint:</strong> ${lesson.hint}
-          ${lesson.commonMistakes && lesson.commonMistakes.length ? `
-            <ul class="hint-mistakes">
-              ${lesson.commonMistakes.map(m => `<li>${m}</li>`).join('')}
-            </ul>
-          ` : ''}
-        </div>
-      `;
-      hintBox.hidden = true;
-    }
-    if (hintToggle) hintToggle.textContent = '💡 Hint';
-
-    document.getElementById('lesson-num').textContent = `${idx + 1} / ${LESSONS.length}`;
-    document.getElementById('btn-prev-lesson').disabled = idx === 0;
-    document.getElementById('btn-next-lesson').disabled = idx === LESSONS.length - 1;
-
-    const btnComplete = document.getElementById('btn-complete-lesson');
-    btnComplete.textContent = done ? 'Completed ✓' : '✓ Mark Complete';
-    btnComplete.classList.toggle('done', done);
-
-    if (completedLessons.size >= LESSONS.length) {
-      document.getElementById('sandbox-msg').hidden = false;
-    }
-
-    updateProgressBar();
-    // Refresh build sim thumb and lesson labels
     drawSimThumb(document.getElementById('build-sim-thumb'));
-    const shortTitle = lesson ? `Lesson ${lesson.id}: ${lesson.title}` : '';
-    const buildLbl = document.getElementById('build-lesson-label');
-    if (buildLbl) buildLbl.textContent = shortTitle;
-    const codeLbl = document.getElementById('code-lesson-label');
-    if (codeLbl) codeLbl.textContent = shortTitle;
-
-    // ── Sync inline lesson pane ─────────────────────────────────────────────
-    const hintContent = `
-      <div class="hint-content">
-        <strong>💡 Hint:</strong> ${lesson.hint}
-        ${lesson.commonMistakes && lesson.commonMistakes.length ? `
-          <ul class="hint-mistakes">
-            ${lesson.commonMistakes.map(m => `<li>${m}</li>`).join('')}
-          </ul>
-        ` : ''}
-      </div>
-    `;
-
-    const paneContent = document.getElementById('lesson-pane-content');
-    if (paneContent) {
-      paneContent.innerHTML = `
-        <div class="lesson-header">
-          <span class="lesson-num-badge">Lesson ${lesson.id}</span>
-          <h2 class="lesson-title">${lesson.title}${done ? ' <span class="lesson-done-badge">✓ Done</span>' : ''}${starsHtml}</h2>
-          <p class="lesson-objective">${lesson.objective}</p>
-        </div>
-        <div class="lesson-body">${lesson.content}</div>
-      `;
-    }
-
-    const paneHintBox = document.getElementById('lesson-pane-hint-box');
-    if (paneHintBox) {
-      paneHintBox.innerHTML = hintContent;
-      paneHintBox.hidden = true;
-    }
-    const paneHintToggle = document.getElementById('btn-pane-hint');
-    if (paneHintToggle) paneHintToggle.textContent = '💡 Hint';
-
-    const paneNum = document.getElementById('lesson-pane-num');
-    if (paneNum) paneNum.textContent = `${idx + 1} / ${LESSONS.length}`;
-
-    const panePrev = document.getElementById('btn-pane-prev');
-    const paneNext = document.getElementById('btn-pane-next');
-    if (panePrev) panePrev.disabled = idx === 0;
-    if (paneNext) paneNext.disabled = idx === LESSONS.length - 1;
-
-    const paneBtnComplete = document.getElementById('btn-pane-complete');
-    if (paneBtnComplete) {
-      paneBtnComplete.textContent = done ? 'Completed ✓' : '✓ Mark Complete';
-      paneBtnComplete.classList.toggle('done', done);
-    }
-  }
-
-  function updateProgressBar() {
-    const fill = document.getElementById('progress-fill');
-    const text = document.getElementById('progress-text');
-    const count = completedLessons.size;
-    const total = LESSONS.length;
-    if (fill) fill.style.setProperty('--progress-pct', `${Math.round(count / total * 100)}%`);
-    if (text) text.textContent = `${count} / ${total}`;
-
-    // Also sync inline pane progress bar
-    const paneFill = document.getElementById('lesson-pane-fill');
-    const paneText = document.getElementById('lesson-pane-text');
-    if (paneFill) paneFill.style.setProperty('--progress-pct', `${Math.round(count / total * 100)}%`);
-    if (paneText) paneText.textContent = `${count} / ${total}`;
-  }
-
-  function navigateLesson(delta) {
-    const next = currentLessonIdx + delta;
-    if (next < 0 || next >= LESSONS.length) return;
-    renderLesson(next);
-    if (activeTab === 'code') loadLessonSim(next);
-  }
-
-  function onCompleteLesson() {
-    const lesson = LESSONS[currentLessonIdx];
-    completedLessons.add(lesson.id);
-    localStorage.setItem('robobuilder_progress', JSON.stringify([...completedLessons]));
-    renderLesson(currentLessonIdx);
-    playSuccessSound();
   }
 
   function loadLessonSim(idx) {
     const lesson = LESSONS[idx];
     if (!lesson) return;
 
-    // Auto-load starter robot for early lessons
+    // Auto-load starter robot for early lessons (skip if build tutorial is active)
     if (lesson.autoLoadStarter) {
       const currentParts = _BC.getRobotConfig().parts || [];
-      if (currentParts.length === 0) {
+      const buildTutDone = localStorage.getItem('robobuilder_build_tutorial_v1') === 'done';
+      if (currentParts.length === 0 && buildTutDone) {
         _BC.spawnStarterRobot();
       }
     }
@@ -1544,44 +1576,9 @@
     const code = extractCode(blocklyWorkspace);
     CodeRunner.run(code, statusEl).then(() => {
       showRunBtn(true);
-      postRunValidation();
     }).catch(() => showRunBtn(true));
   }
 
-  function postRunValidation() {
-    if (_runGoalReached) return; // goal reached — no hints needed
-    const lesson = LESSONS[currentLessonIdx];
-    if (!lesson) return;
-    const debug = SimEngine.getDebugState ? SimEngine.getDebugState() : null;
-    if (!debug) return;
-
-    // Lesson-specific hints based on observed behavior
-    const hints = [];
-
-    if (lesson.id === 3) {
-      // Square challenge — expects 4 turns
-      if (debug.turnCount === 0) {
-        hints.push('No turns detected — try adding Turn Right 90° blocks inside the loop.');
-      } else if (debug.turnCount < 4) {
-        hints.push(`You turned ${debug.turnCount} time${debug.turnCount > 1 ? 's' : ''} — a square needs exactly 4 turns.`);
-      } else if (debug.turnCount === 4) {
-        hints.push('4 turns — perfect for a square! Check the goal zone position.');
-      }
-    }
-
-    if (lesson.id === 4 || lesson.id === 5) {
-      // Sensor lessons
-      if (!debug.movedCalled) {
-        hints.push('Robot never moved — make sure your code drives the robot forward.');
-      }
-    }
-
-    if (!debug.movedCalled && lesson.goalZone) {
-      hints.push('Robot didn\'t move — add a Drive Forward block.');
-    }
-
-    hints.forEach(h => robotLog('💡 ' + h, 'info'));
-  }
 
   function onResetSim() {
     CodeRunner.stop();
@@ -1673,41 +1670,6 @@
 
   // ── Star rating ─────────────────────────────────────────────────────────────
 
-  function calculateStars(lesson) {
-    if (!lesson || !lesson.starCriteria) return 1;
-    const criteria = lesson.starCriteria;
-    let met = 0;
-    let total = 0;
-
-    if (criteria.maxTime) {
-      total++;
-      const elapsed = (Date.now() - CodeRunner.getRunStartMs()) / 1000;
-      if (elapsed <= criteria.maxTime) met++;
-    }
-    if (criteria.maxBlocks && blocklyWorkspace) {
-      total++;
-      const blockCount = blocklyWorkspace.getAllBlocks(false).length;
-      if (blockCount <= criteria.maxBlocks) met++;
-    }
-
-    if (total === 0) return 1;
-    if (met === total) return 3;
-    if (met >= total / 2) return 2;
-    return 1;
-  }
-
-  function starString(count) {
-    return '★'.repeat(count) + '☆'.repeat(3 - count);
-  }
-
-  function saveLessonStars(lessonId, stars) {
-    const prev = lessonStars[lessonId] || 0;
-    if (stars > prev) {
-      lessonStars[lessonId] = stars;
-      localStorage.setItem('robobuilder_stars', JSON.stringify(lessonStars));
-    }
-  }
-
   // ── Goal reached ───────────────────────────────────────────────────────────
 
   function onGoalReached() {
@@ -1715,25 +1677,11 @@
     if (banner) { banner.hidden = false; setTimeout(() => { banner.hidden = true; }, 4000); }
     launchConfetti();
     playSuccessSound();
-    // Stop the running program so the Run button state stays consistent
     CodeRunner.stop();
     showRunBtn(true);
 
     _runGoalReached = true;
-
-    // Auto-mark current lesson complete + star rating
-    const lesson = LESSONS[currentLessonIdx];
-    if (lesson) {
-      const stars = calculateStars(lesson);
-      saveLessonStars(lesson.id, stars);
-
-      if (!completedLessons.has(lesson.id)) {
-        completedLessons.add(lesson.id);
-        localStorage.setItem('robobuilder_progress', JSON.stringify([...completedLessons]));
-      }
-      renderLesson(currentLessonIdx);
-      robotLog(`🏆 Lesson ${lesson.id} complete: "${lesson.title}" ${starString(stars)}`, 'info');
-    }
+    robotLog('🏆 Goal reached!', 'info');
     window.dispatchEvent(new CustomEvent('robobuilder:goalreached'));
   }
 

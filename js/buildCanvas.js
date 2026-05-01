@@ -419,6 +419,95 @@ const BuildCanvas = (() => {
       drawSnapHighlight(drag.snapResult, true);
     }
     if (drag.active && (drag.mode === 'new' || drag.mode === 'move')) drawGhost();
+
+    // Build tutorial ghost target
+    if (window._buildTutorialActive && window._buildTutorialActive()) {
+      drawBuildTutorialGhost();
+    }
+  }
+
+  // ── Build tutorial ghost target ──────────────────────────────────────────
+  function drawBuildTutorialGhost() {
+    if (!window._buildTutorialGetGhost) return;
+    var ghost = window._buildTutorialGetGhost();
+    if (!ghost) return;
+
+    var def = getPartDef(ghost.type);
+    if (!def) return;
+
+    // Compute target position (same formula as spawnStarterRobot)
+    var cx = Math.round(canvas.width  / 2 / GRID) * GRID;
+    var cy = Math.round(canvas.height / 2 / GRID) * GRID;
+    var tx = Math.round((cx + ghost.offsetX) / GRID) * GRID;
+    var ty = Math.round((cy + ghost.offsetY) / GRID) * GRID;
+
+    var pw = def.width;
+    var ph = def.height;
+    // Handle dynamic sizing for wheels/c-channels — prefer the per-step length
+    // override on target3D.props if the tutorial supplied one (e.g. 60 vs 100).
+    var stepLength = ghost.target3D && ghost.target3D.props && ghost.target3D.props.length;
+    if (ghost.type === 'wheel') {
+      pw = ph = (stepLength != null) ? stepLength : (def.props && def.props[0] ? def.props[0].default : 40);
+    } else if (ghost.type === 'c-channel') {
+      pw = (stepLength != null) ? stepLength : (def.props && def.props[0] ? def.props[0].default : 100);
+    }
+
+    // Pulsing animation
+    var pulse = Math.sin(Date.now() / 350) * 0.5 + 0.5; // 0..1
+
+    ctx.save();
+    ctx.translate(tx + pw / 2, ty + ph / 2);
+    ctx.rotate(ghost.rotation || 0);
+    ctx.translate(-pw / 2, -ph / 2);
+
+    // Light blue filled shape
+    ctx.globalAlpha = 0.18 + pulse * 0.1;
+    ctx.fillStyle = '#93C5FD';
+    if (ghost.type === 'wheel') {
+      ctx.beginPath();
+      ctx.arc(pw / 2, ph / 2, pw / 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(0, 0, pw, ph, 4);
+      else ctx.rect(0, 0, pw, ph);
+      ctx.fill();
+    }
+
+    // Pulsing blue border with glow
+    ctx.globalAlpha = 0.5 + pulse * 0.4;
+    ctx.shadowColor = 'rgba(59, 130, 246, ' + (0.4 + pulse * 0.35) + ')';
+    ctx.shadowBlur  = 14 + pulse * 10;
+    ctx.strokeStyle = '#60A5FA';
+    ctx.lineWidth   = 2.5;
+    ctx.setLineDash([7, 5]);
+    ctx.lineDashOffset = -Date.now() / 60 % 24;
+    if (ghost.type === 'wheel') {
+      ctx.beginPath();
+      ctx.arc(pw / 2, ph / 2, pw / 2 + 4, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      ctx.strokeRect(-4, -4, pw + 8, ph + 8);
+    }
+    ctx.setLineDash([]);
+
+    // "Place here" label
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur  = 0;
+    ctx.globalAlpha = 0.5 + pulse * 0.3;
+    ctx.fillStyle   = '#3B82F6';
+    ctx.font        = 'bold 10px Inter, system-ui, sans-serif';
+    ctx.textAlign   = 'center';
+    var labelY = ghost.type === 'wheel' ? ph + 18 : ph + 14;
+    ctx.fillText('▼ Place here', pw / 2, labelY);
+
+    ctx.restore();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur  = 0;
+    ctx.globalAlpha = 1;
+
+    // Request continuous redraws for animation
+    requestAnimationFrame(function () { draw(); });
   }
 
   function drawBg() {
@@ -1168,18 +1257,29 @@ const BuildCanvas = (() => {
       const key  = 'robobuilder_slot_' + (slotName || 'default');
       const data = JSON.parse(localStorage.getItem(key) || 'null');
       if (!data) return false;
-      const rawParts = Array.isArray(data.parts) ? data.parts : [];
-      placedParts = rawParts.filter(p =>
-        p && typeof p.id === 'number' && typeof p.type === 'string' &&
-        p.position && typeof p.position.x === 'number' && typeof p.position.y === 'number' &&
-        getPartDef(p.type) !== null
-      );
-      connections = Array.isArray(data.connections) ? data.connections : [];
-      nextId = placedParts.reduce((m, p) => Math.max(m, p.id || 0), 0) + 1;
-      selectedId = null; notifySelection(null);
-      draw(); pushHistory(); onRobotConfigChanged();
-      return true;
+      return loadConfig(data);
     } catch (e) { return false; }
+  }
+
+  /**
+   * Hydrate the canvas from a plain config object (e.g. from cloud sync).
+   * @param {{parts?:Array, connections?:Array}} data
+   * @returns {boolean} true if at least one valid part was loaded.
+   */
+  function loadConfig(data) {
+    if (!data || typeof data !== 'object') return false;
+    const rawParts = Array.isArray(data.parts) ? data.parts : [];
+    const filtered = rawParts.filter(p =>
+      p && typeof p.id === 'number' && typeof p.type === 'string' &&
+      p.position && typeof p.position.x === 'number' && typeof p.position.y === 'number' &&
+      getPartDef(p.type) !== null
+    );
+    placedParts = filtered;
+    connections = Array.isArray(data.connections) ? data.connections : [];
+    nextId = placedParts.reduce((m, p) => Math.max(m, p.id || 0), 0) + 1;
+    selectedId = null; notifySelection(null);
+    draw(); pushHistory(); onRobotConfigChanged();
+    return placedParts.length > 0;
   }
 
   // ── Starter robot ──────────────────────────────────────────────────────────
@@ -1205,22 +1305,26 @@ const BuildCanvas = (() => {
       placedParts.push(part);
     };
 
-    add('c-channel',       -50,   8);
-    add('motor',           -22, -40);
-    add('wheel',           -60,  32);
-    add('wheel',            20,  32);
-    add('distance-sensor', -20, -70);
-    add('brain',            40, -44);
-    add('battery',          40,  10);
+    add('c-channel',       -50, -10);   // Left chassis rail
+    add('c-channel',       -50,  20);   // Right chassis rail
+    add('motor',           -70, -40);   // Left motor (Motor A)
+    add('motor',            10, -40);   // Right motor (Motor B)
+    add('wheel',           -80,  32);   // Front wheel
+    add('wheel',            30,  32);   // Back wheel
+    add('distance-sensor', -20, -70);   // Front sensor
+    add('brain',            50, -44);   // Brain controller
+    add('battery',          50,  10);   // Battery
 
-    // Wire up the robot: battery→brain (power), brain→motor (signal), brain→sensor (signal)
+    // Wire up the robot: battery→brain (power), brain→motors (signal), brain→sensor (signal)
     connections = [];
     const battPart   = placedParts.find(p => p.type === 'battery');
     const brainPart  = placedParts.find(p => p.type === 'brain');
-    const motorPart  = placedParts.find(p => p.type === 'motor');
+    const motors     = placedParts.filter(p => p.type === 'motor');
     const sensPart   = placedParts.find(p => p.type === 'distance-sensor');
     if (battPart && brainPart)  connections.push({ fromId: battPart.id,  toId: brainPart.id,  wireType: 'power'  });
-    if (brainPart && motorPart) connections.push({ fromId: brainPart.id, toId: motorPart.id,  wireType: 'signal' });
+    motors.forEach(m => {
+      if (brainPart) connections.push({ fromId: brainPart.id, toId: m.id, wireType: 'signal' });
+    });
     if (brainPart && sensPart)  connections.push({ fromId: brainPart.id, toId: sensPart.id,   wireType: 'signal' });
 
     selectedId = null; notifySelection(null);
@@ -1229,6 +1333,17 @@ const BuildCanvas = (() => {
 
   function redraw() { draw(); }
 
+  // ── Programmatic connection (used by build tutorial helpers) ──────────────
+  function addConnection(fromId, toId, wireType) {
+    // Remove existing connection between these two if any
+    connections = connections.filter(function (c) {
+      return !((c.fromId === fromId && c.toId === toId) ||
+               (c.fromId === toId && c.toId === fromId));
+    });
+    connections.push({ fromId: fromId, toId: toId, wireType: wireType });
+    draw(); pushHistory(); onRobotConfigChanged();
+  }
+
   return {
     init, setActiveTool, resetCanvas,
     startNewPartDrag, getRobotConfig, getConnections,
@@ -1236,7 +1351,8 @@ const BuildCanvas = (() => {
     notifyPropChanged, notifyConfigOnly: function() { if (_onConfigChange) _onConfigChange(getRobotConfig()); },
     drawAssemblyToContext,
     getPlacedParts() { return placedParts; },
-    spawnStarterRobot, saveRobot, loadRobot,
+    spawnStarterRobot, saveRobot, loadRobot, loadConfig,
+    addConnection,
     undo, redo, redraw
   };
 })();

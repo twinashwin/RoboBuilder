@@ -53,6 +53,11 @@ const BuildCanvas3D = (() => {
   let _ghostIsSnap   = false;     // tracks ghost material state to avoid per-frame clone
   let _targetZoom    = 1.3;       // smooth zoom target (NB-B)
 
+  // Build-tutorial ghost (separate from placementMode ghost). Set via the
+  // window._buildTutorialGetGhost() global; rendered every frame in animate().
+  let _tutGhostMesh        = null;  // THREE.Group
+  let _tutGhostKey         = '';    // cache key 'type|x|z|rot|len' to avoid rebuild
+
   // Raycasting
   const raycaster = new THREE.Raycaster();
   const mouse     = new THREE.Vector2();
@@ -235,6 +240,7 @@ const BuildCanvas3D = (() => {
   function destroy() {
     if (animFrameId) cancelAnimationFrame(animFrameId);
     animFrameId = null;
+    _disposeTutGhost();
     if (_onVisibilityChange) {
       document.removeEventListener('visibilitychange', _onVisibilityChange);
       _onVisibilityChange = null;
@@ -340,6 +346,9 @@ const BuildCanvas3D = (() => {
       camera.zoom += (_targetZoom - camera.zoom) * 0.14;
       camera.updateProjectionMatrix();
     }
+
+    // Build-tutorial outline: glowing target where the next part should go.
+    _updateTutorialGhost();
 
     if (renderer && scene && camera) {
       renderer.render(scene, camera);
@@ -720,6 +729,82 @@ const BuildCanvas3D = (() => {
     return group;
   }
 
+  /** Build-tutorial ghost: a glowing target outline shown at the next part's
+   *  intended position. Uses the same createPartMesh as the real part so the
+   *  outline geometry exactly matches what the user is about to drop. */
+  function _disposeTutGhost() {
+    if (_tutGhostMesh) {
+      disposeMesh(_tutGhostMesh);
+      if (scene) scene.remove(_tutGhostMesh);
+      _tutGhostMesh = null;
+      _tutGhostKey = '';
+    }
+  }
+
+  function _updateTutorialGhost() {
+    // Only run when we have a scene and the build tutorial is active and gives a target3D.
+    const isActive = window._buildTutorialActive && window._buildTutorialActive();
+    if (!isActive || !scene) {
+      if (_tutGhostMesh) _disposeTutGhost();
+      return;
+    }
+    const ghost = window._buildTutorialGetGhost && window._buildTutorialGetGhost();
+    const t3 = ghost && ghost.target3D;
+    if (!ghost || !t3) {
+      if (_tutGhostMesh) _disposeTutGhost();
+      return;
+    }
+
+    // Cache key: rebuild only when type/position/rotation/length actually changed.
+    const lengthProp = (t3.props && t3.props.length) || '';
+    const key = ghost.type + '|' + t3.x + '|' + t3.z + '|' + (t3.rot || 0) + '|' + lengthProp;
+    if (key !== _tutGhostKey) {
+      _disposeTutGhost();
+      const def = getPartDef(ghost.type);
+      const props = {};
+      if (def && def.props) def.props.forEach(p => { props[p.key] = p.default; });
+      if (t3.props) Object.assign(props, t3.props);
+      const mesh = createPartMesh(ghost.type, props);
+      // Re-skin every mesh with a glowing blue ghost material so it stands out.
+      mesh.traverse(child => {
+        if (child.isMesh) {
+          if (child.material) {
+            if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+            else child.material.dispose();
+          }
+          child.material = new THREE.MeshStandardMaterial({
+            color: 0x3b82f6,
+            emissive: 0x3b82f6,
+            emissiveIntensity: 0.55,
+            transparent: true,
+            opacity: 0.42,
+            depthWrite: false,
+            metalness: 0.2,
+            roughness: 0.5,
+          });
+          child.castShadow = false;
+          child.receiveShadow = false;
+        }
+      });
+      mesh.position.set(t3.x, 0, t3.z);
+      mesh.rotation.y = t3.rot || 0;
+      scene.add(mesh);
+      _tutGhostMesh = mesh;
+      _tutGhostKey = key;
+    }
+
+    // Pulse opacity + emissive intensity for visibility.
+    const pulse = 0.5 + 0.5 * Math.sin(_time * 6);
+    _tutGhostMesh.traverse(child => {
+      if (child.isMesh && child.material) {
+        child.material.opacity = 0.32 + pulse * 0.30;
+        child.material.emissiveIntensity = 0.35 + pulse * 0.5;
+      }
+    });
+    // Subtle hover bob to draw the eye.
+    _tutGhostMesh.position.y = 0.06 + pulse * 0.10;
+  }
+
   // ── Scene Sync (data → meshes) ─────────────────────────────────────────────
 
   /** Rebuild the entire 3D scene from placedParts[] and connections[]. */
@@ -929,8 +1014,18 @@ const BuildCanvas3D = (() => {
     return points;
   }
 
+  /** True while the build tutorial is in progress — used to disable auto-snap so
+   *  the user's drop position stays where they put it (matching spawnStarterRobot
+   *  output 1:1 when each step's ghost is followed). */
+  function _isBuildTutorialActive() {
+    return !!(window._buildTutorialActive && window._buildTutorialActive());
+  }
+
   /** Find nearest snap pair on the XZ plane between a ghost position and all placed parts. */
   function findSnapTarget(ghostPos, ghostType, excludeId) {
+    // During the build tutorial, never snap — the tutorial places parts at exact
+    // coordinates that match the ⭐ Starter Bot, and snapping would relocate them.
+    if (_isBuildTutorialActive()) return null;
     const SNAP_THRESH_3D = 1.0; // world units
     let best = null;
     let bestDist = SNAP_THRESH_3D;
@@ -1825,6 +1920,16 @@ const BuildCanvas3D = (() => {
     saveRobot,
     loadRobot,
     loadConfig,
+    addConnection: function(fromId, toId, wireType) {
+      connections = connections.filter(c =>
+        !((c.fromId === fromId && c.toId === toId) ||
+          (c.fromId === toId && c.toId === fromId))
+      );
+      connections.push({ fromId, toId, wireType });
+      rebuildWires();
+      pushHistory();
+      _fireConfigChange();
+    },
     undo,
     redo,
     redraw,

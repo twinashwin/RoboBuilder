@@ -2109,6 +2109,36 @@ button:disabled { opacity: 0.35; cursor: not-allowed !important; }
   color: #fff;
 }
 
+/* Navbar Sign In button — matches replay button style */
+#btn-login {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  height: 30px;
+  background: none;
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r-lg);
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+#btn-login:hover {
+  background: var(--accent);
+  color: #fff;
+}
+#btn-login.is-logged-in {
+  border-color: var(--ok, #10b981);
+  color: var(--ok, #10b981);
+}
+#btn-login.is-logged-in:hover {
+  background: var(--ok, #10b981);
+  color: #fff;
+}
+
 /* Tutorial sandwich column — sits between Blockly and right panel */
 #tutorial-right:not([hidden]) {
   display: flex;
@@ -2349,6 +2379,654 @@ button:disabled { opacity: 0.35; cursor: not-allowed !important; }
 #tutorial-complete-card p  { font-size: 0.9rem; color: var(--text-2); margin: 0; }
 
 /* ═══════════════════════════════════════════════════════════════
+   BUILD TUTORIAL PANEL
+═══════════════════════════════════════════════════════════════ */
+
+#build-tutorial-panel:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 2px solid var(--accent);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  animation: build-panel-glow 3s ease-in-out infinite, tut-panel-in 0.22s ease;
+  flex: 1;
+  min-height: 320px;
+}
+@keyframes build-panel-glow {
+  0%, 100% { box-shadow: 0 0 15px rgba(59,130,246,0.12), 0 4px 24px rgba(0,0,0,0.06); }
+  50% { box-shadow: 0 0 28px rgba(59,130,246,0.22), 0 4px 24px rgba(0,0,0,0.1); }
+}
+
+#build-tutorial-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem 1.5rem 1rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+#build-tut-progress {
+  height: 6px;
+  background: var(--bg-surface);
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+#build-tut-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  width: 0%;
+}
+
+#build-tut-step-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: rgba(59, 130, 246, 0.08);
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  display: inline-block;
+  width: fit-content;
+}
+
+#build-tut-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--text-1);
+}
+
+#build-tut-body {
+  font-size: 0.9rem;
+  color: var(--text-2);
+  line-height: 1.65;
+  flex: 1;
+}
+#build-tut-body p { margin: 0 0 0.7rem; }
+#build-tut-body p:last-child { margin-bottom: 0; }
+#build-tut-body strong { color: var(--text-1); }
+#build-tut-body kbd {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 1px 0 var(--border);
+}
+
+#build-tut-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#build-tut-primary-btns { display: flex; align-items: center; gap: 0.5rem; }
+
+.tut-helper-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--r-lg);
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.tut-helper-btn:hover { background: var(--bg-base); }
+
+/* Build tutorial: highlight part in sidebar */
+.build-tut-highlight {
+  animation: build-tut-pulse 1.2s ease-in-out infinite !important;
+  position: relative;
+  z-index: 5;
+}
+@keyframes build-tut-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5),
+                0 0 12px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.8),
+                0 0 20px rgba(59, 130, 246, 0.5);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOGIN MODAL
+═══════════════════════════════════════════════════════════════ */
+
+#login-overlay:not([hidden]) {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9100;
+  animation: login-fade-in 0.3s ease;
+}
+@keyframes login-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.login-dialog {
+  background: var(--bg-card);
+  border-radius: var(--r-xl);
+  width: 420px;
+  max-width: calc(100vw - 2rem);
+  padding: 2.25rem 2rem 1.75rem;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.25),
+              0 0 0 1px var(--border);
+  animation: tut-panel-in 0.3s ease;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* View-swap animation: fade+lift in/out for the inner card content. */
+.login-card-inner {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.login-card-inner-in {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.login-card-inner-out {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.login-close-btn {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s, color 0.15s;
+}
+.login-close-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-1);
+}
+
+.login-robot-icon {
+  margin-bottom: 0.5rem;
+}
+.login-robot-icon svg {
+  filter: drop-shadow(0 4px 12px rgba(59, 130, 246, 0.28));
+}
+
+.login-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-1);
+  letter-spacing: -0.02em;
+}
+
+.login-subtitle {
+  font-size: 0.88rem;
+  color: var(--text-2);
+  margin: 0 0 1.25rem;
+  line-height: 1.5;
+}
+
+.login-label {
+  display: block;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-2);
+  margin: 0.65rem 0 0.35rem;
+  letter-spacing: 0.01em;
+}
+.login-label:first-of-type { margin-top: 0; }
+
+.login-text-input,
+.login-email-input {        /* legacy class kept for back-compat */
+  width: 100%;
+  padding: 0.7rem 0.95rem;
+  border: 1.5px solid var(--border-mid, var(--border));
+  border-radius: var(--r-md);
+  font-size: 0.95rem;
+  font-family: var(--font-ui);
+  color: var(--text-1);
+  background: var(--bg-card);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+}
+.login-text-input:focus,
+.login-email-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+.login-text-input::placeholder,
+.login-email-input::placeholder {
+  color: var(--text-3);
+}
+
+/* Password field with eye toggle button. */
+.login-password-wrap {
+  position: relative;
+}
+.login-password-wrap .login-text-input {
+  padding-right: 2.4rem;
+}
+.login-eye-btn {
+  position: absolute;
+  top: 50%;
+  right: 0.55rem;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background-color 0.15s;
+}
+.login-eye-btn:hover {
+  color: var(--text-1);
+  background: var(--bg-hover);
+}
+
+.login-submit {
+  width: 100%;
+  padding: 0.78rem;
+  margin-top: 1rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-md);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: background 0.15s, filter 0.15s, transform 0.06s;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.login-submit:hover { filter: brightness(1.08); }
+.login-submit:active { transform: translateY(1px); }
+.login-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  filter: none;
+}
+
+/* Spinner inside submit button */
+.login-spinner {
+  display: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: login-spin 0.7s linear infinite;
+}
+.login-form-loading .login-spinner { display: inline-block; }
+.login-form-loading .login-submit-label { opacity: 0.85; }
+@keyframes login-spin { to { transform: rotate(360deg); } }
+
+.login-error {
+  color: var(--red);
+  font-size: 0.8rem;
+  margin-top: 0.55rem;
+  min-height: 1.2em;
+  text-align: left;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 0.15s, transform 0.15s;
+}
+.login-error.login-error-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Toggle link row at the bottom of the form */
+.login-toggle-row {
+  margin-top: 1.1rem;
+  font-size: 0.85rem;
+  color: var(--text-2);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.4rem;
+}
+.login-toggle-link {
+  background: none;
+  border: none;
+  font-family: var(--font-ui);
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0.15rem 0.25rem;
+  border-radius: var(--r-sm);
+  transition: background-color 0.15s, color 0.15s;
+}
+.login-toggle-link:hover {
+  color: var(--accent-dark);
+  background: var(--accent-light);
+}
+
+/* Success state */
+.login-success { padding-top: 0.5rem; }
+.login-success-check {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--green-dim);
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.85rem;
+  animation: login-check-pop 0.35s ease both;
+}
+@keyframes login-check-pop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  60%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ═════════ Account dropdown menu (logged-in nav button) ═════════ */
+#account-menu {
+  z-index: 9050;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 200px;
+  padding: 0.4rem;
+  font-family: var(--font-ui);
+  animation: account-menu-in 0.14s ease;
+}
+@keyframes account-menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.account-menu-email {
+  font-size: 0.78rem;
+  color: var(--text-2);
+  padding: 0.5rem 0.65rem 0.55rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.3rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+.account-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  background: none;
+  border: none;
+  border-radius: var(--r-sm);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  color: var(--text-1);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.12s, color 0.12s;
+}
+.account-menu-item:hover {
+  background: var(--bg-hover);
+  color: var(--red);
+}
+.account-menu-item svg { color: var(--text-3); flex-shrink: 0; }
+.account-menu-item:hover svg { color: var(--red); }
+
+/* ═════════ Cloud-sync indicator states (autosave-indicator) ═════════ */
+.autosave-cloud-saving::before { background: var(--accent); animation: cloud-pulse 1.2s ease-in-out infinite; }
+.autosave-cloud-saved::before  { background: var(--green); }
+.autosave-cloud-offline::before { background: var(--amber); }
+.autosave-cloud-saving { color: var(--accent) !important; opacity: 1 !important; }
+.autosave-cloud-saved  { color: var(--text-2); opacity: 1 !important; }
+.autosave-cloud-offline { color: var(--amber); opacity: 1 !important; }
+@keyframes cloud-pulse {
+  0%, 100% { transform: scale(1);   opacity: 0.7; }
+  50%      { transform: scale(1.4); opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PARTS PANEL LOCK
+   Two layers compose:
+     1. Per-item .part-item-locked — dims a single part, blocks pointer.
+        Used both for the "all locked, not logged in" case and for the
+        "tutorial active, only one part allowed" case.
+     2. Container .parts-locked — adds the "Sign up to unlock" tooltip
+        and routes clicks to the login modal (via loginModal.js capture
+        click handler). Set ONLY when no tutorial is active and the user
+        isn't logged in.
+═══════════════════════════════════════════════════════════════ */
+
+/* Per-item dim/disable */
+.part-item.part-item-locked {
+  opacity: 0.32;
+  pointer-events: none;
+  filter: grayscale(0.7);
+  transition: opacity 0.25s ease, filter 0.25s ease;
+}
+/* The single allowed item during a tutorial step. The pulsing
+   .build-tut-highlight (set by buildTutorial.js applyHighlight) handles the
+   blue glow; this rule just guarantees normal opacity in case both classes
+   co-exist on the same element. */
+.part-item.part-item-allowed {
+  opacity: 1;
+  filter: none;
+  pointer-events: auto;
+}
+
+/* Container-level "Sign up to unlock" tooltip — only shown when the whole
+   panel is locked AND no tutorial is active. */
+#parts-list.parts-locked {
+  position: relative;
+  cursor: pointer;
+}
+/* When the container is locked (rule 3: not in tutorial, not logged in),
+   re-enable pointer events on locked items so the capture-click handler in
+   loginModal.js receives them and pops the login modal. The mousedown
+   handler in app.js still rejects locked clicks early, so drags don't
+   start. */
+#parts-list.parts-locked .part-item.part-item-locked {
+  pointer-events: auto;
+  cursor: pointer;
+}
+#parts-list.parts-locked::after {
+  content: 'Sign up to unlock all parts';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: var(--r-lg);
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(59, 130, 246, 0.15);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PROJECTS PANEL (Code tab — replaces tutorial panel after completion)
+═══════════════════════════════════════════════════════════════ */
+
+#projects-right:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  animation: tut-panel-in 0.22s ease;
+  min-width: 260px;
+  max-width: 300px;
+  flex-shrink: 0;
+}
+
+#projects-right-inner {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1rem 0.75rem;
+  overflow-y: auto;
+  flex: 1;
+  gap: 0.75rem;
+}
+
+#projects-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#projects-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+#projects-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Grid of challenge cards */
+.projects-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.project-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 0.65rem 0.6rem;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.project-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(59,130,246,0.1);
+  transform: translateY(-1px);
+}
+.project-card.project-done {
+  border-color: #10B981;
+}
+.project-card-num {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.project-card-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-1);
+  line-height: 1.3;
+}
+.project-card-theme {
+  font-size: 0.68rem;
+  color: var(--text-3);
+}
+.project-card-check {
+  color: #10B981;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* Active challenge view inside projects panel */
+.project-step-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.project-step-progress {
+  height: 4px;
+  background: var(--bg-surface);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.project-step-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.project-step-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.project-step-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+.project-step-body {
+  font-size: 0.82rem;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+.project-step-body p { margin: 0 0 0.5rem; }
+.project-step-body p:last-child { margin-bottom: 0; }
+.project-step-body strong { color: var(--text-1); }
+.project-step-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ═══════════════════════════════════════════════════════════════
    RESPONSIVE / MOBILE
    1280px → reduce panel widths
     960px → single-pane code left (hide lesson pane)
@@ -2413,7 +3091,7 @@ button:disabled { opacity: 0.35; cursor: not-allowed !important; }
   /* Icon-only nav buttons — hide text labels */
   .nav-label { display: none; }
   /* Make nav buttons square icon buttons */
-  #btn-lessons, #btn-replay-tutorial, #btn-theme-toggle,
+  #btn-lessons, #btn-replay-tutorial, #btn-theme-toggle, #btn-login,
   #btn-download, #btn-export, #btn-import,
   #btn-run, #btn-stop-sim, #btn-reset-sim {
     padding: 6px 8px;

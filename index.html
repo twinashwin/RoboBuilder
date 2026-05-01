@@ -10,7 +10,7 @@
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src https://fonts.gstatic.com;
     img-src 'self' data:;
-    connect-src 'none';
+    connect-src 'self';
     frame-src 'none';
     object-src 'none';
     base-uri 'self';
@@ -72,7 +72,7 @@
         <span class="chip">🔧 Drag-and-drop parts</span>
         <span class="chip">💻 Visual block coding</span>
         <span class="chip">🤖 Live simulation</span>
-        <span class="chip">📐 8 guided lessons</span>
+        <span class="chip">📐 Step-by-step tutorials</span>
       </div>
       <button id="btn-splash-start" class="btn-cta">Start Building <span class="cta-arrow">→</span></button>
       <p class="splash-sub">No login required · Free forever · Works in your browser</p>
@@ -113,10 +113,6 @@
 
     <!-- Right: actions -->
     <div class="nav-right">
-      <button id="btn-lessons" title="Lessons & Challenges">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
-        <span class="nav-label">Lessons</span>
-      </button>
       <button id="btn-replay-tutorial" title="Replay the coding tutorial">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16" fill="currentColor" stroke="none"/></svg>
         <span class="nav-label">Tutorial</span>
@@ -124,6 +120,10 @@
       <button id="btn-theme-toggle" class="btn-theme-toggle" title="Toggle dark mode">
         <svg id="theme-icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         <svg id="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+      <button id="btn-login" title="Sign in / create account">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span class="nav-label">Sign In</span>
       </button>
       <span id="autosave-indicator" class="autosave-badge">Saved</span>
       <div id="nav-code-actions">
@@ -220,7 +220,6 @@
         <div id="build-field-preview">
           <div class="panel-hdr">
             <h3>Field Preview</h3>
-            <span id="build-lesson-label" class="panel-badge">Lesson 1</span>
           </div>
           <div id="build-sim-thumb-wrap">
             <canvas id="build-sim-thumb" width="220" height="130"></canvas>
@@ -231,6 +230,27 @@
             <h3>Properties</h3>
           </div>
           <div id="props-content"></div>
+        </div>
+
+        <!-- Build Tutorial Panel -->
+        <div id="build-tutorial-panel" hidden>
+          <div id="build-tutorial-inner">
+            <div id="build-tut-progress" role="progressbar" aria-valuemin="1" aria-valuemax="11" aria-valuenow="1">
+              <div id="build-tut-progress-fill"></div>
+            </div>
+            <div id="build-tut-step-badge">
+              Step <span id="build-tut-step-num">1</span> of <span id="build-tut-step-total">14</span>
+            </div>
+            <h3 id="build-tut-title"></h3>
+            <div id="build-tut-body"></div>
+            <div id="build-tut-footer">
+              <button id="build-tut-btn-skip" class="tut-skip-btn" type="button">Skip Tutorial</button>
+              <div id="build-tut-primary-btns">
+                <button id="build-tut-btn-helper" class="tut-helper-btn" hidden type="button"></button>
+                <button id="build-tut-btn-next" class="tut-next-btn" type="button">Next</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -246,30 +266,7 @@
       <!-- Left: Side-by-side Lesson + Blocks panels -->
       <div id="blocks-panel">
 
-        <!-- Lesson pane (left half) -->
-        <div id="lesson-pane" class="code-panel-pane active">
-          <div class="code-subpanel-hdr">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
-            Lesson
-          </div>
-          <div id="lesson-pane-progress">
-            <div id="lesson-pane-fill"></div>
-            <span id="lesson-pane-text">0 / 8</span>
-          </div>
-          <div id="lesson-pane-content"></div>
-          <div id="lesson-pane-footer">
-            <div id="lesson-pane-nav">
-              <button id="btn-pane-prev">← Prev</button>
-              <span id="lesson-pane-num">1 / 8</span>
-              <button id="btn-pane-next">Next →</button>
-            </div>
-            <button id="btn-pane-hint" class="btn-hint">💡 Hint</button>
-            <div id="lesson-pane-hint-box" hidden></div>
-            <button id="btn-pane-complete">✓ Mark Complete</button>
-          </div>
-        </div>
-
-        <!-- Blocks pane (right half) — drop blocks here to delete -->
+        <!-- Blocks pane — drop blocks here to delete -->
         <div id="blocks-pane" class="code-panel-pane active">
           <div class="code-subpanel-hdr">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
@@ -302,7 +299,7 @@
             <div id="tutorial-progress-fill"></div>
           </div>
           <div id="tutorial-step-badge">
-            Step <span id="tut-step-num">1</span> of 8
+            Step <span id="tut-step-num">1</span> of <span id="tut-step-total">9</span>
           </div>
           <h3 id="tutorial-title"></h3>
           <div id="tutorial-body"></div>
@@ -317,6 +314,17 @@
         </div>
       </div>
 
+      <!-- Projects panel (replaces tutorial panel after completion) -->
+      <div id="projects-right" hidden>
+        <div id="projects-right-inner">
+          <div id="projects-header">
+            <h3 id="projects-title">Projects</h3>
+            <button id="projects-back-btn" class="tut-skip-btn" type="button" hidden>← Back</button>
+          </div>
+          <div id="projects-body"></div>
+        </div>
+      </div>
+
       <!-- Right: Field preview + Debug console + Hardware panel -->
       <div id="code-right-panel">
 
@@ -325,7 +333,6 @@
           <div class="panel-hdr">
             <div style="display:flex;flex-direction:column;gap:2px">
               <h3>Field Preview</h3>
-              <span id="code-lesson-label" class="lesson-mini-label">Lesson 1</span>
             </div>
             <div style="display:flex;align-items:center;gap:6px">
               <div id="parts-indicator"></div>
@@ -430,35 +437,6 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       LESSONS DRAWER
-  ═══════════════════════════════════════════════════════ -->
-  <div id="lessons-modal">
-    <div id="lessons-drawer">
-      <div class="drawer-hdr">
-        <h2>📚 Lessons</h2>
-        <button id="btn-close-lessons">✕</button>
-      </div>
-      <div id="progress-strip">
-        <div id="progress-fill"></div>
-        <span id="progress-text">0 / 8</span>
-      </div>
-      <div id="lesson-content"></div>
-      <div id="lesson-footer">
-        <div id="lesson-nav">
-          <button id="btn-prev-lesson">← Prev</button>
-          <span id="lesson-num">1 / 8</span>
-          <button id="btn-next-lesson">Next →</button>
-        </div>
-        <button id="btn-hint-toggle" class="btn-hint">💡 Hint</button>
-        <div id="hint-box" hidden></div>
-        <button id="btn-complete-lesson">✓ Mark Complete</button>
-        <div id="sandbox-msg" hidden>
-          <strong>🎉 All Lessons Complete!</strong><br>Sandbox mode unlocked — code freely!
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- ═══════════════════════════════════════════════════════
        KEYBOARD SHORTCUTS OVERLAY
@@ -495,6 +473,9 @@
   <!-- Confetti overlay -->
   <canvas id="confetti-canvas"></canvas>
 
+  <!-- Login overlay -->
+  <div id="login-overlay" hidden></div>
+
   <!-- Scripts (dependency order) -->
   <script src="js/partDefs.js"></script>
   <script src="js/snapSystem.js"></script>
@@ -513,6 +494,10 @@
   <script src="js/simCanvas.js"></script>
   <script src="js/codeRunner.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/loginModal.js"></script>
+  <script src="js/cloudSync.js"></script>
+  <script src="js/buildTutorial.js"></script>
   <script src="js/tutorial.js"></script>
+  <script src="js/projects.js"></script>
 </body>
 </html>
