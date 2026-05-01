@@ -2762,6 +2762,70 @@ button:disabled { opacity: 0.35; cursor: not-allowed !important; }
   100% { transform: scale(1); opacity: 1; }
 }
 
+/* "Verify email" / "reset password" icon — same sizing as success check
+   but with the accent blue palette to differentiate from success-green. */
+.login-verify-icon {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+/* Supabase-not-configured banner shown above the form on a fresh clone. */
+.login-config-warn {
+  background: rgba(249, 115, 22, 0.10);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  color: #92400E;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--r-md);
+  margin: 0 0 0.85rem;
+}
+.login-config-warn code {
+  font-family: var(--font-mono, JetBrains Mono, monospace);
+  background: rgba(0, 0, 0, 0.06);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  font-size: 0.74rem;
+}
+[data-theme="dark"] .login-config-warn {
+  color: #FCD34D;
+  background: rgba(249, 115, 22, 0.12);
+}
+
+/* "Forgot password?" link, anchored beneath the password field on the
+   login view (not signup). Right-aligned, subtle. */
+.login-forgot-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0.05rem 0 0.2rem;
+}
+.login-forgot-link {
+  background: none;
+  border: none;
+  padding: 0.15rem 0.1rem;
+  font-family: var(--font-ui);
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: color 0.15s;
+}
+.login-forgot-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* Small explanatory line under the verify-email subtitle. */
+.login-fineprint {
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  color: var(--text-3);
+  text-align: center;
+  margin: 0 0 1rem;
+  line-height: 1.45;
+}
+
 /* ═════════ Account dropdown menu (logged-in nav button) ═════════ */
 #account-menu {
   z-index: 9050;

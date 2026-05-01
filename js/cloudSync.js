@@ -1,13 +1,15 @@
 // cloudSync.js — Cross-browser sync of build + Blockly XML for logged-in users.
+// Backed by Supabase Postgres (table `public.saves`, RLS-keyed on auth.uid()).
 //
 // Responsibilities:
-//   1. On login (or page-load with active session): hydrate the canvas + workspace
-//      from GET /api/sync. If server has no saved state but the user has local
-//      state from working logged-out, push that to the server as the new cloud
-//      state on first signup.
+//   1. On login (or page-load with active session): hydrate the canvas +
+//      workspace from `select * from saves where user_id = me`. If the row
+//      doesn't exist or is empty but the user has local state from working
+//      logged-out, push that to Supabase as the new cloud state.
 //   2. While logged in, every 30s: snapshot current build + Blockly XML, hash,
-//      and POST /api/sync if anything changed.
-//   3. On page-unload: best-effort final flush via navigator.sendBeacon.
+//      and upsert if anything changed.
+//   3. On page-unload: best-effort upsert via fetch (sendBeacon can't carry
+//      Supabase's auth headers, so we fire a regular request with keepalive).
 //   4. Update the autosave indicator to reflect cloud-sync status.
 //
 // Public API (on window):
@@ -31,8 +33,11 @@
   var _inFlight     = false;
   var _hydrated     = false;
 
+  function getSupabase() {
+    return window.supabase || null;
+  }
+
   // ── Indicator state ───────────────────────────────────────────────────────
-  // Mirrors flashAutosave() in app.js but distinguishes cloud states.
   function _setIndicator(state) {
     var el = document.getElementById('autosave-indicator');
     if (!el) return;
@@ -78,56 +83,70 @@
     return str.length + ':' + h;
   }
 
+  // ── Get current authenticated user (from Supabase session) ────────────────
+  function _getAuthedUser() {
+    var sb = getSupabase();
+    if (!sb) return Promise.resolve(null);
+    return sb.auth.getSession().then(function (resp) {
+      var sess = resp && resp.data && resp.data.session;
+      return (sess && sess.user) || null;
+    }).catch(function () { return null; });
+  }
+
   // ── Hydrate from server ───────────────────────────────────────────────────
   function hydrate(opts) {
     opts = opts || {};
-    return fetch('/api/sync', { credentials: 'include' })
-      .then(function (resp) {
-        if (resp.status === 401) {
-          // Not signed in — nothing to do.
-          return { ok: false };
-        }
-        if (!resp.ok) throw new Error('sync GET failed: ' + resp.status);
-        return resp.json().then(function (j) { return { ok: true, data: j }; });
-      })
-      .then(function (r) {
-        if (!r.ok) return;
+    var sb = getSupabase();
+    if (!sb) {
+      _setIndicator('offline');
+      return Promise.resolve();
+    }
 
-        var serverBuild = r.data.build || null;
-        var serverCode  = r.data.code  || null;
-
-        var hasServerBuild = !!(serverBuild && Array.isArray(serverBuild.parts) && serverBuild.parts.length > 0);
-        var hasServerCode  = !!(serverCode && typeof serverCode === 'string' && serverCode.length > 30);
-        // (Empty Blockly XML is ~24 chars: `<xml xmlns="..."></xml>`.)
-
-        if (hasServerBuild) {
-          _applyBuildToCanvas(serverBuild);
-        }
-        if (hasServerCode) {
-          _applyCodeToWorkspace(serverCode);
-        }
-
-        // Establish baseline hashes so we don't immediately re-push.
-        _lastBuildKey = _hash(_getBuildSnapshot());
-        _lastCodeKey  = _hash(_getCodeSnapshot());
-        _hydrated = true;
-
-        // First-time push: server is empty but local has work.
-        if (!hasServerBuild && !hasServerCode && opts.pushLocalIfRemoteEmpty) {
-          var localBuild = _getBuildSnapshot();
-          var localCode  = _getCodeSnapshot();
-          var hasLocal = (localBuild && localBuild.parts && localBuild.parts.length > 0)
-            || (localCode && localCode.length > 30);
-          if (hasLocal) {
-            return _pushNow(localBuild, localCode);
+    return _getAuthedUser().then(function (user) {
+      if (!user) return;
+      return sb
+        .from('saves')
+        .select('build, code')
+        .eq('user_id', user.id)
+        .maybeSingle()
+        .then(function (resp) {
+          if (resp.error) {
+            console.warn('[cloudSync] Hydrate select failed:', resp.error.message);
+            _setIndicator('offline');
+            return;
           }
-        }
-        _setIndicator('idle');
-      })
-      .catch(function (err) {
-        console.warn('[cloudSync] Hydrate failed:', err);
-        _setIndicator('offline');
-      });
+          var row = resp.data || null;
+          var serverBuild = (row && row.build && typeof row.build === 'object') ? row.build : null;
+          var serverCode  = (row && typeof row.code === 'string')                ? row.code  : null;
+
+          var hasServerBuild = !!(serverBuild && Array.isArray(serverBuild.parts) && serverBuild.parts.length > 0);
+          var hasServerCode  = !!(serverCode && serverCode.length > 30);
+          // (Empty Blockly XML is ~24 chars: `<xml xmlns="..."></xml>`.)
+
+          if (hasServerBuild) _applyBuildToCanvas(serverBuild);
+          if (hasServerCode)  _applyCodeToWorkspace(serverCode);
+
+          // Establish baseline hashes so we don't immediately re-push.
+          _lastBuildKey = _hash(_getBuildSnapshot());
+          _lastCodeKey  = _hash(_getCodeSnapshot());
+          _hydrated = true;
+
+          // First-time push: server is empty but local has work.
+          if (!hasServerBuild && !hasServerCode && opts.pushLocalIfRemoteEmpty) {
+            var localBuild = _getBuildSnapshot();
+            var localCode  = _getCodeSnapshot();
+            var hasLocal = (localBuild && localBuild.parts && localBuild.parts.length > 0)
+              || (localCode && localCode.length > 30);
+            if (hasLocal) {
+              return _pushNow(localBuild, localCode);
+            }
+          }
+          _setIndicator('idle');
+        });
+    }).catch(function (err) {
+      console.warn('[cloudSync] Hydrate failed:', err);
+      _setIndicator('offline');
+    });
   }
 
   function _applyBuildToCanvas(buildData) {
@@ -174,46 +193,52 @@
     var cKey = _hash(code);
 
     if (bKey === _lastBuildKey && cKey === _lastCodeKey) {
-      // Nothing changed — idle merge.
+      // Nothing changed — idle.
       return;
     }
     _pushNow(build, code, bKey, cKey);
   }
 
   function _pushNow(build, code, bKey, cKey) {
+    var sb = getSupabase();
+    if (!sb) {
+      _setIndicator('offline');
+      return Promise.resolve();
+    }
     _inFlight = true;
     _setIndicator('saving');
     bKey = bKey || _hash(build);
     cKey = cKey || _hash(code);
 
-    return fetch('/api/sync', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ build: build, code: code })
-    }).then(function (resp) {
-      _inFlight = false;
-      if (resp.status === 401) {
-        // Session expired mid-edit. Stop syncing until next login.
+    return _getAuthedUser().then(function (user) {
+      if (!user) {
+        // Session expired. Stop syncing until next login.
+        _inFlight = false;
         stop();
-        if (window._signOut) {
-          // Force the auth cache to clear so the lock resolver re-locks.
-          window._signOut();
+        if (window._signOut) window._signOut();
+        _setIndicator('offline');
+        return;
+      }
+      return sb.from('saves').upsert({
+        user_id: user.id,
+        build:   build || {},
+        code:    (typeof code === 'string') ? code : '',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' }).then(function (resp) {
+        _inFlight = false;
+        if (resp.error) {
+          console.warn('[cloudSync] Upsert failed:', resp.error.message);
+          _setIndicator('offline');
+          return;
         }
-        _setIndicator('offline');
-        return;
-      }
-      if (!resp.ok) {
-        _setIndicator('offline');
-        return;
-      }
-      _lastBuildKey = bKey;
-      _lastCodeKey  = cKey;
-      _setIndicator('saved');
+        _lastBuildKey = bKey;
+        _lastCodeKey  = cKey;
+        _setIndicator('saved');
+      });
     }).catch(function (err) {
       _inFlight = false;
       _setIndicator('offline');
-      console.warn('[cloudSync] POST failed:', err);
+      console.warn('[cloudSync] Push failed:', err);
     });
   }
 
@@ -243,24 +268,16 @@
     var cKey = _hash(code);
     if (bKey === _lastBuildKey && cKey === _lastCodeKey) return;
 
-    var body = JSON.stringify({ build: build, code: code });
-    if (navigator.sendBeacon) {
-      try {
-        var blob = new Blob([body], { type: 'application/json' });
-        navigator.sendBeacon('/api/sync', blob);
-        return;
-      } catch (e) { /* fall through to fetch */ }
-    }
-    // Fallback: synchronous-ish fetch with keepalive.
+    // Best-effort fire-and-forget. sendBeacon can't carry Supabase's
+    // Authorization header, so we use a regular fetch via the SDK and
+    // hope the request flushes before the page tears down. Browsers
+    // generally honor in-flight fetches initiated synchronously during
+    // pagehide for ~ a few seconds.
     try {
-      fetch('/api/sync', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: body,
-        keepalive: true
-      });
-    } catch (e) { /* ignore */ }
+      _pushNow(build, code, bKey, cKey);
+    } catch (e) {
+      // Nothing we can do at this point.
+    }
   }
 
   function flush() {
@@ -272,14 +289,9 @@
   // ── Wire to login/logout ──────────────────────────────────────────────────
   window.addEventListener('robobuilder:login-success', function () {
     // Hydrate (server-first) then start the timer.
-    // pushLocalIfRemoteEmpty is true only when we know it's a fresh signup or
-    // session restore where local edits should be preserved on the server.
-    // The login modal sets this on signup; on session restore from /api/me we
-    // also pass it — there's no harm in pushing local state to a server slot
-    // that's empty.
     var pushLocal = true;
     hydrate({ pushLocalIfRemoteEmpty: pushLocal })
-      .finally(function () { start(); });
+      .then(function () { start(); }, function () { start(); });
   });
 
   window.addEventListener('robobuilder:logout', function () {
