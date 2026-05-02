@@ -5,7 +5,7 @@
 // obstacles used in lessons.
 
 const SensorSystem = (() => {
-  let MAX_RANGE = 300; // px — maximum sensor detection distance
+  let MAX_RANGE = 1023; // px — maximum sensor detection distance (scaled ×3.41 from 300)
   const STEP    = 2;   // px per raycast step (see tradeoff note above)
 
   function setMaxRange(r) { MAX_RANGE = Math.max(10, Number(r) || 300); }

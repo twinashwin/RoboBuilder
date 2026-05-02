@@ -21,10 +21,16 @@ const CodeCanvas3D = (() => {
   const SCALE      = 40;
   const OFFSET_X   = 200;
   const OFFSET_Y   = 150;
-  const simToWorldX = (simX) => (simX - OFFSET_X) / SCALE;
-  const simToWorldZ = (simY) => (simY - OFFSET_Y) / SCALE;
+  // RENDER_SCALE = 1: with the 1500×1500 arena the field is already large enough
+  // (1500/40 = 37.5 world units) — no inflation needed. Reduced from 10 now that
+  // the underlying arena is 3.41× bigger.
+  const RENDER_SCALE = 1;
+  const simToWorldX = (simX) => ((simX - OFFSET_X) / SCALE) * RENDER_SCALE;
+  const simToWorldZ = (simY) => ((simY - OFFSET_Y) / SCALE) * RENDER_SCALE;
 
-  const FIELD_BARRIER_HEIGHT = 2.5;
+  // Barrier height — kept at visual wall height (world units), independent of
+  // arena footprint.
+  const FIELD_BARRIER_HEIGHT = 10;
 
   let scene, camera, renderer;
   let groundPlane = null;
@@ -129,17 +135,18 @@ const CodeCanvas3D = (() => {
     const W = container.clientWidth  || 400;
     const H = container.clientHeight || 300;
     const aspect = W / H;
-    const frustum = 7;
+    // Frustum tuned to the 1500×1500 arena at RENDER_SCALE=1.
+    // Arena is 37.5×37.5 world units; center at simToWorldX(750)=13.75, simToWorldZ(750)=15.
+    const frustum = 24;
     camera = new THREE.OrthographicCamera(
-      -frustum * aspect, frustum * aspect, frustum, -frustum, 0.1, 100
+      -frustum * aspect, frustum * aspect, frustum, -frustum, 0.1, 2000
     );
-    // Fixed isometric pose — same angle as BuildCanvas3D's default (10,10,10),
-    // but offset toward the arena center so the field fits nicely in the slot.
-    const center = new THREE.Vector3(0.5, 0.5, 0.75);
-    camera.position.set(center.x + 10, center.y + 10, center.z + 10);
+    // Fixed isometric pose — offset toward arena center (13.75, 0, 15) in world units.
+    const center = new THREE.Vector3(13.75, 5, 15);
+    camera.position.set(center.x + 30, center.y + 30, center.z + 30);
     camera.up.set(0, 1, 0);
     camera.lookAt(center);
-    camera.zoom = 1.8; // dialed for the right-side viewer slot
+    camera.zoom = 1.8;
     camera.updateProjectionMatrix();
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -157,18 +164,18 @@ const CodeCanvas3D = (() => {
     const ambient = new THREE.AmbientLight(0x94a3b8, 0.6);
     scene.add(ambient);
     const dir = new THREE.DirectionalLight(0xffffff, 1.2);
-    dir.position.set(5, 12, 8);
+    dir.position.set(15, 40, 20);
     dir.castShadow = true;
-    dir.shadow.mapSize.set(1024, 1024);
+    dir.shadow.mapSize.set(2048, 2048);
     dir.shadow.camera.near = 0.5;
-    dir.shadow.camera.far  = 30;
-    dir.shadow.camera.left   = -10;
-    dir.shadow.camera.right  =  10;
-    dir.shadow.camera.top    =  10;
-    dir.shadow.camera.bottom = -10;
+    dir.shadow.camera.far  = 200;
+    dir.shadow.camera.left   = -40;
+    dir.shadow.camera.right  =  40;
+    dir.shadow.camera.top    =  40;
+    dir.shadow.camera.bottom = -40;
     scene.add(dir);
     const fill = new THREE.DirectionalLight(0x60a5fa, 0.3);
-    fill.position.set(-5, 4, -3);
+    fill.position.set(-15, 12, -10);
     scene.add(fill);
 
     rebuildGround();
@@ -233,7 +240,7 @@ const CodeCanvas3D = (() => {
     const H = container.clientHeight;
     if (W === 0 || H === 0) return;
     const aspect = W / H;
-    const frustum = 7;
+    const frustum = 24; // tuned to 1500×1500 arena at RENDER_SCALE=1
     camera.left   = -frustum * aspect;
     camera.right  =  frustum * aspect;
     camera.top    =  frustum;
@@ -245,7 +252,9 @@ const CodeCanvas3D = (() => {
   // ── Ground / Grid ──────────────────────────────────────────────────────────
 
   function rebuildGround() {
-    const arenaW = 11, arenaH = 9;
+    // Arena: 1500×1500 sim px at RENDER_SCALE=1 → 37.5×37.5 world units.
+    // Center: simToWorldX(750)=13.75, simToWorldZ(750)=15.0
+    const arenaW = 37.5, arenaH = 37.5;
 
     if (gridHelper) {
       scene.remove(gridHelper);
@@ -266,13 +275,14 @@ const CodeCanvas3D = (() => {
     const groundMat = new THREE.MeshStandardMaterial({ color: colors.ground, roughness: 0.95 });
     groundPlane = new THREE.Mesh(groundGeo, groundMat);
     groundPlane.rotation.x = -Math.PI / 2;
-    groundPlane.position.set(0.5, -0.02, 0.75);
+    groundPlane.position.set(13.75, -0.02, 15.0);
     groundPlane.receiveShadow = true;
     scene.add(groundPlane);
 
-    const gridSize = Math.max(arenaW, arenaH);
-    gridHelper = new THREE.GridHelper(gridSize, gridSize, colors.major, colors.minor);
-    gridHelper.position.set(0.5, -0.01, 0.75);
+    const gridSize = arenaW;
+    // Use 37 divisions for ~1-unit grid lines on the 37.5-unit field.
+    gridHelper = new THREE.GridHelper(gridSize, 37, colors.major, colors.minor);
+    gridHelper.position.set(13.75, -0.01, 15.0);
     scene.add(gridHelper);
   }
 
@@ -282,9 +292,12 @@ const CodeCanvas3D = (() => {
     if (!barriersRoot) return;
     clearGroup(barriersRoot);
 
-    const minX = -5, maxX = 6;
-    const minZ = -3.75, maxZ = 5.25;
-    const wt = 0.2;
+    // Arena bounds in world units at RENDER_SCALE=1:
+    //   x: simToWorldX(0)=-5,    simToWorldX(1500)=32.5
+    //   z: simToWorldZ(0)=-3.75, simToWorldZ(1500)=33.75
+    const minX = -5, maxX = 32.5;
+    const minZ = -3.75, maxZ = 33.75;
+    const wt = 0.2;  // wall thickness (world units)
     const h = FIELD_BARRIER_HEIGHT;
 
     const segments = [
@@ -312,10 +325,12 @@ const CodeCanvas3D = (() => {
     if (!Array.isArray(obstacles)) return;
 
     obstacles.forEach(obs => {
+      // Center in scaled world coords (simToWorldX/Z already apply RENDER_SCALE).
       const wx = simToWorldX(obs.x + obs.width  / 2);
       const wz = simToWorldZ(obs.y + obs.height / 2);
-      const sx = obs.width  / SCALE;
-      const sz = obs.height / SCALE;
+      // Obstacle size in world units — also scaled by RENDER_SCALE.
+      const sx = (obs.width  / SCALE) * RENDER_SCALE;
+      const sz = (obs.height / SCALE) * RENDER_SCALE;
       const h  = (typeof obs.obstacleHeight === 'number' && isFinite(obs.obstacleHeight))
         ? obs.obstacleHeight
         : FIELD_BARRIER_HEIGHT;
@@ -339,8 +354,9 @@ const CodeCanvas3D = (() => {
     const z = goalZoneConfig;
     const wx = simToWorldX(z.x + z.width  / 2);
     const wz = simToWorldZ(z.y + z.height / 2);
-    const sx = z.width  / SCALE;
-    const sz = z.height / SCALE;
+    // Goal zone size in scaled world units.
+    const sx = (z.width  / SCALE) * RENDER_SCALE;
+    const sz = (z.height / SCALE) * RENDER_SCALE;
 
     const padGeo = new THREE.PlaneGeometry(sx, sz);
     goalPad = new THREE.Mesh(padGeo, M.goalPad.clone());
@@ -348,8 +364,8 @@ const CodeCanvas3D = (() => {
     goalPad.position.set(wx, 0.01, wz);
     goalRoot.add(goalPad);
 
-    const ringInner = Math.max(0.05, Math.min(sx, sz) * 0.42);
-    const ringOuter = ringInner + 0.08;
+    const ringInner = Math.max(0.5, Math.min(sx, sz) * 0.42);
+    const ringOuter = ringInner + 0.8;
     const ringGeo = new THREE.RingGeometry(ringInner, ringOuter, 48);
     goalRing = new THREE.Mesh(ringGeo, M.goalRing.clone());
     goalRing.rotation.x = -Math.PI / 2;
@@ -387,10 +403,14 @@ const CodeCanvas3D = (() => {
       const ph  = def ? getEffectiveH(p, def) : 22;
       const partCxSim = p.position.x + pw / 2;
       const partCySim = p.position.y + ph / 2;
-      const lx = (partCxSim - cxSim) / SCALE;
-      const lz = (partCySim - cySim) / SCALE;
+      // Local offset relative to robot centre, in scaled world units.
+      const lx = ((partCxSim - cxSim) / SCALE) * RENDER_SCALE;
+      const lz = ((partCySim - cySim) / SCALE) * RENDER_SCALE;
 
       const mesh = createPartMesh(p.type, p.props || {});
+      // Scale mesh X and Z by RENDER_SCALE so the robot body matches the larger
+      // field. Y (height) stays at 1× — walls are already ×4 per spec.
+      mesh.scale.set(RENDER_SCALE, 1, RENDER_SCALE);
       mesh.position.set(lx, 0, lz);
       mesh.rotation.y = (p.rotation || 0);
       robotRoot.add(mesh);
@@ -398,19 +418,21 @@ const CodeCanvas3D = (() => {
   }
 
   function addGenericRobot(parent) {
-    const w = 32 / SCALE, d = 22 / SCALE;
+    // Generic robot sized to match the scaled field (32×22 sim px → ×RENDER_SCALE).
+    const w = (32 / SCALE) * RENDER_SCALE;
+    const d = (22 / SCALE) * RENDER_SCALE;
     const body = new THREE.Mesh(
-      new THREE.BoxGeometry(w, 0.25, d),
+      new THREE.BoxGeometry(w, 2.5, d),
       new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.4, metalness: 0.3 })
     );
-    body.position.y = 0.125;
+    body.position.y = 1.25;
     body.castShadow = true;
     parent.add(body);
     const nub = new THREE.Mesh(
-      new THREE.ConeGeometry(0.07, 0.16, 12),
+      new THREE.ConeGeometry(0.7, 1.6, 12),
       new THREE.MeshStandardMaterial({ color: 0xec4899 })
     );
-    nub.position.set(w / 2 + 0.08, 0.125, 0);
+    nub.position.set(w / 2 + 0.8, 1.25, 0);
     nub.rotation.z = -Math.PI / 2;
     parent.add(nub);
   }

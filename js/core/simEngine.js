@@ -3,10 +3,10 @@
 
 const SimEngine = (() => {
   // ── Constants ───────────────────────────────────────────────────────────────
-  const ROBOT_WIDTH        = 32;
-  const ROBOT_HEIGHT       = 22;
-  const DEFAULT_ARENA_W    = 440;
-  const DEFAULT_ARENA_H    = 360;
+  const ROBOT_WIDTH        = 109;
+  const ROBOT_HEIGHT       = 75;
+  const DEFAULT_ARENA_W    = 1500;
+  const DEFAULT_ARENA_H    = 1500;
   const TRAIL_MAX_POINTS   = 600;
   const TRAIL_SAMPLE_RATE  = 2;     // record a trail point every N ticks
   const MOVE_THRESHOLD     = 0.1;   // min px delta to count as "actually moved"

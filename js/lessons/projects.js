@@ -20,9 +20,9 @@
       title: 'Drive & Park',
       theme: 'Precise movement',
       description: 'Drive forward a set distance and stop exactly inside the goal zone.',
-      startPosition: { x: 80, y: 300, angleDeg: -90 },
+      startPosition: { x: 273, y: 1023, angleDeg: -90 },
       obstacles: [],
-      goalZone: { x: 340, y: 40, width: 80, height: 80 },
+      goalZone: { x: 1159, y: 136, width: 273, height: 273 },
       steps: [
         {
           title: 'Plan Your Drive',
@@ -43,9 +43,9 @@
       title: 'Square Dance',
       theme: 'Loops & geometry',
       description: 'Drive in a perfect square using a Repeat loop and your turnRight function.',
-      startPosition: { x: 220, y: 280, angleDeg: -90 },
+      startPosition: { x: 750, y: 955, angleDeg: -90 },
       obstacles: [],
-      goalZone: { x: 190, y: 250, width: 60, height: 60 },
+      goalZone: { x: 648, y: 852, width: 205, height: 205 },
       steps: [
         {
           title: 'Build the Square',
@@ -66,12 +66,12 @@
       title: 'Zigzag Runner',
       theme: 'Functions',
       description: 'Navigate a zigzag path by alternating between turnRight and turnLeft.',
-      startPosition: { x: 40, y: 300, angleDeg: -90 },
+      startPosition: { x: 136, y: 1023, angleDeg: -90 },
       obstacles: [
-        { x: 130, y: 0, width: 16, height: 220 },
-        { x: 280, y: 140, width: 16, height: 220 },
+        { x: 443, y: 0,   width: 55, height: 750 },
+        { x: 955, y: 477, width: 55, height: 750 },
       ],
-      goalZone: { x: 360, y: 20, width: 60, height: 60 },
+      goalZone: { x: 1227, y: 68, width: 205, height: 205 },
       steps: [
         {
           title: 'Create turnLeft',
@@ -92,11 +92,11 @@
       title: 'Wall Avoider',
       theme: 'Sensors & if/then',
       description: 'Use the distance sensor to detect a wall and turn before hitting it.',
-      startPosition: { x: 80, y: 180, angleDeg: 0 },
+      startPosition: { x: 273, y: 614, angleDeg: 0 },
       obstacles: [
-        { x: 300, y: 100, width: 20, height: 160 },
+        { x: 1023, y: 341, width: 68, height: 546 },
       ],
-      goalZone: { x: 350, y: 20, width: 70, height: 70 },
+      goalZone: { x: 1193, y: 68, width: 239, height: 239 },
       steps: [
         {
           title: 'Sense the Wall',
@@ -120,15 +120,15 @@
       title: 'Maze Navigator',
       theme: 'While loops & sensors',
       description: 'Navigate through a corridor using while loops and sensor feedback.',
-      startPosition: { x: 40, y: 180, angleDeg: 0 },
+      startPosition: { x: 136, y: 614, angleDeg: 0 },
       obstacles: [
-        { x: 0, y: 120, width: 200, height: 16 },
-        { x: 0, y: 240, width: 200, height: 16 },
-        { x: 200, y: 120, width: 16, height: 80 },
-        { x: 260, y: 180, width: 16, height: 80 },
-        { x: 200, y: 240, width: 140, height: 16 },
+        { x: 0,   y: 409, width: 682, height: 55 },
+        { x: 0,   y: 819, width: 682, height: 55 },
+        { x: 682, y: 409, width: 55,  height: 273 },
+        { x: 886, y: 614, width: 55,  height: 273 },
+        { x: 682, y: 819, width: 477, height: 55 },
       ],
-      goalZone: { x: 350, y: 280, width: 70, height: 60 },
+      goalZone: { x: 1193, y: 955, width: 239, height: 205 },
       steps: [
         {
           title: 'Drive Until Blocked',
@@ -146,12 +146,12 @@
       title: 'Speed Controller',
       theme: 'Math & variables',
       description: 'Drive at different speeds — fast, medium, slow — to navigate a precision course.',
-      startPosition: { x: 40, y: 180, angleDeg: 0 },
+      startPosition: { x: 136, y: 614, angleDeg: 0 },
       obstacles: [
-        { x: 180, y: 80, width: 16, height: 120 },
-        { x: 300, y: 160, width: 16, height: 120 },
+        { x: 614,  y: 273, width: 55, height: 409 },
+        { x: 1023, y: 546, width: 55, height: 409 },
       ],
-      goalZone: { x: 370, y: 20, width: 60, height: 60 },
+      goalZone: { x: 1261, y: 68, width: 205, height: 205 },
       steps: [
         {
           title: 'Variable Power',
@@ -171,9 +171,9 @@
       title: 'Spiral Explorer',
       theme: 'Changing values in loops',
       description: 'Drive in an expanding spiral by increasing drive time each loop iteration.',
-      startPosition: { x: 220, y: 180, angleDeg: -90 },
+      startPosition: { x: 750, y: 614, angleDeg: -90 },
       obstacles: [],
-      goalZone: { x: 10, y: 10, width: 60, height: 60 },
+      goalZone: { x: 34, y: 34, width: 205, height: 205 },
       steps: [
         {
           title: 'Growing Spiral',
@@ -193,14 +193,14 @@
       title: 'Follow the Path',
       theme: 'Advanced sensors',
       description: 'Use continuous sensor reading to follow a winding path through obstacles.',
-      startPosition: { x: 40, y: 320, angleDeg: -45 },
+      startPosition: { x: 136, y: 1091, angleDeg: -45 },
       obstacles: [
-        { x: 100, y: 200, width: 80, height: 16 },
-        { x: 220, y: 100, width: 80, height: 16 },
-        { x: 140, y: 300, width: 16, height: 60 },
-        { x: 320, y: 200, width: 16, height: 100 },
+        { x: 341,  y: 682, width: 273, height: 55 },
+        { x: 750,  y: 341, width: 273, height: 55 },
+        { x: 477,  y: 1023, width: 55, height: 205 },
+        { x: 1091, y: 682, width: 55,  height: 341 },
       ],
-      goalZone: { x: 360, y: 20, width: 60, height: 60 },
+      goalZone: { x: 1227, y: 68, width: 205, height: 205 },
       steps: [
         {
           title: 'Reactive Driving',
@@ -220,15 +220,15 @@
       title: 'Obstacle Course',
       theme: 'All concepts combined',
       description: 'The ultimate challenge — navigate a complex course using everything you\'ve learned.',
-      startPosition: { x: 40, y: 320, angleDeg: -90 },
+      startPosition: { x: 136, y: 1091, angleDeg: -90 },
       obstacles: [
-        { x: 0, y: 240, width: 120, height: 16 },
-        { x: 160, y: 120, width: 16, height: 200 },
-        { x: 220, y: 60, width: 120, height: 16 },
-        { x: 300, y: 160, width: 16, height: 140 },
-        { x: 160, y: 120, width: 100, height: 16 },
+        { x: 0,    y: 819, width: 409, height: 55 },
+        { x: 546,  y: 409, width: 55,  height: 682 },
+        { x: 750,  y: 205, width: 409, height: 55 },
+        { x: 1023, y: 546, width: 55,  height: 477 },
+        { x: 546,  y: 409, width: 341, height: 55 },
       ],
-      goalZone: { x: 360, y: 280, width: 60, height: 60 },
+      goalZone: { x: 1227, y: 955, width: 205, height: 205 },
       steps: [
         {
           title: 'Study the Map',
@@ -252,7 +252,7 @@
       title: 'Free Build',
       theme: 'Open sandbox',
       description: 'No goal — experiment freely! Build anything you can imagine.',
-      startPosition: { x: 220, y: 180, angleDeg: -90 },
+      startPosition: { x: 750, y: 614, angleDeg: -90 },
       obstacles: [],
       goalZone: null,
       steps: [
@@ -388,7 +388,7 @@
   }
 
   function setupProjectSim(project) {
-    var aw = 440, ah = 360;
+    var aw = 1500, ah = 1500;
     if (typeof SimEngine !== 'undefined') {
       SimEngine.init(aw, ah);
       SimEngine.setObstacles(project.obstacles || []);
