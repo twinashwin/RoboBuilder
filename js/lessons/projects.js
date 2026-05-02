@@ -300,7 +300,10 @@
     });
 
     // Also show projects when the tutorial is skipped (tutorial panel hidden
-    // without completing — user dismissed mid-flow)
+    // without completing — user dismissed mid-flow).
+    // Note: skipTutorial() in tutorial.js calls endTutorial() before dispatching
+    // this event, so _codeTutorialActive will already be false by the time the
+    // 300 ms setTimeout fires — the showProjectsPanel() guard will pass correctly.
     window.addEventListener('robobuilder:tutorial-closed', function () {
       setTimeout(function () {
         if (window._activeTab === 'code') showProjectsPanel();
@@ -312,9 +315,8 @@
     // triggered the tutorial at all.
     var checkCodeTab = function () {
       if (window._activeTab !== 'code') return;
-      // Don't override an actively-running tutorial.
-      var tutPanel = document.getElementById('tutorial-right');
-      if (tutPanel && !tutPanel.hasAttribute('hidden')) return;
+      // showProjectsPanel() already guards against an active tutorial via the
+      // _codeTutorialActive flag — just call it directly.
       showProjectsPanel();
     };
     document.querySelectorAll('.tab-btn[data-tab="code"]').forEach(function (btn) {
@@ -328,12 +330,18 @@
 
   // ── Show/Hide ─────────────────────────────────────────────────────────────────
   function showProjectsPanel() {
-    // Don't stomp on an actively-running tutorial — guard, then hide.
+    // Guard: the JS-state flag set/cleared by tutorial.js is the authoritative
+    // signal that the tutorial is currently running.  This is immune to the
+    // timing windows that a DOM-attribute check alone can miss — for example
+    // the 600 ms checkCodeTab setTimeout that fires after the initial Code-tab
+    // click but before startTutorial()'s own 300 ms delay has had a chance to
+    // remove the 'hidden' attribute from #tutorial-right.
+    //
+    // When _codeTutorialActive is false the tutorial is either done, skipped,
+    // or was never started — all valid cases for showing the projects panel.
+    if (window._codeTutorialActive) return;
+
     var tutPanel = document.getElementById('tutorial-right');
-    if (tutPanel && !tutPanel.hasAttribute('hidden')) {
-      // Tutorial is currently shown; the user is mid-tutorial. Skip projects.
-      return;
-    }
     if (tutPanel) tutPanel.setAttribute('hidden', '');
 
     panel.removeAttribute('hidden');

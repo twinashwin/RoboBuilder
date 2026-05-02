@@ -338,8 +338,11 @@ const TestCanvas3D = (() => {
     if (_pan.active && camera && renderer) {
       const dx = e.clientX - _pan.lastX;
       const dy = e.clientY - _pan.lastY;
+      // Pan speed: (frustum * 2) / canvasHeight / zoom — a full canvas drag
+      // pans the full visible height, matching the spec's natural-feel target.
+      // frustum = 27 for this canvas (1500×1500 arena at RENDER_SCALE=1).
       const H = renderer.domElement.clientHeight || 600;
-      const scale = (8 * 2) / H / camera.zoom;
+      const scale = (27 * 2) / H / camera.zoom;
       const right = new THREE.Vector3();
       const up    = new THREE.Vector3();
       camera.getWorldDirection(right);

@@ -16,6 +16,11 @@
   var goalListenerAdded  = false;
   var _runCaptureHandler = null;
   var isReplayMode       = false;
+  var _active            = false;   // true while tutorial panel is visible and running
+
+  // Expose so projects.js (and others) can reliably check tutorial state without
+  // relying solely on the DOM attribute (which can momentarily lag).
+  window._codeTutorialActive = false;
 
   // ── DOM refs ─────────────────────────────────────────────────────────────────
   var tutPanel, progressFill, stepNumEl, stepTotalEl, titleEl, bodyEl,
@@ -70,7 +75,7 @@
       body:  '<p>Wait — the robot started <em>and</em> stopped at the same instant, so it never moved!</p>'
            + '<p>Code runs really fast. You need a <span class="block-chip control">Wait</span> block '
            + 'between the spin and stop blocks to give the motors time to run.</p>'
-           + '<p>Add a <strong>Wait</strong> block set to <strong>0.25</strong> seconds between '
+           + '<p>Add a <strong>Wait</strong> block set to <strong>1</strong> seconds between '
            + 'the spin blocks and the stop blocks. Then <strong>Run</strong> again.</p>',
       highlightSel: SEL_WAIT,
       nextLabel:    null,
@@ -253,6 +258,8 @@
   // ── Show / Hide ──────────────────────────────────────────────────────────────
   function startTutorial() {
     if (!tutPanel) return;
+    _active = true;
+    window._codeTutorialActive = true;
     // Hide the projects panel if it's open — tutorial takes precedence while running.
     var projectsPanel = document.getElementById('projects-right');
     if (projectsPanel) projectsPanel.setAttribute('hidden', '');
@@ -262,6 +269,8 @@
   }
 
   function endTutorial() {
+    _active = false;
+    window._codeTutorialActive = false;
     if (tutPanel) tutPanel.setAttribute('hidden', '');
     clearHighlight();
   }
@@ -693,7 +702,16 @@
     document.body.appendChild(el);
     document.getElementById('tut-done-btn').addEventListener('click', function () {
       el.remove();
+      // Tutorial is fully dismissed — hide the tutorial panel so the
+      // projects panel can take its slot.
+      endTutorial();
     });
+
+    // Mark tutorial as no longer active so projects.js guards stop blocking.
+    // (The DOM panel is still visible while the completion card overlay is shown,
+    // but the "active tutorial" semantic is over — the user just finished.)
+    _active = false;
+    window._codeTutorialActive = false;
 
     // Fire completion event for login flow
     window.dispatchEvent(new CustomEvent('robobuilder:tutorial-complete'));

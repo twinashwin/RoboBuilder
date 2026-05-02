@@ -1,11 +1,10 @@
 // Code Canvas 3D — 3D field renderer for the right-side viewer slot in the
-// Code tab. Supports orbit (right-drag) and zoom (wheel); no middle-button pan.
+// Code tab. Supports orbit (right-drag), zoom (wheel), and pan (middle-drag).
 //
 // This is the sibling of testCanvas3D.js. The two files share ~95% of their
-// implementation by design (option (a) from the spec) — the only diff is that
-// codeCanvas3D omits middle-button pan. If a shared core/three3DScene.js helper
-// is extracted later, both files become thin wrappers (requires index.html
-// load-order changes — ui-refiner).
+// implementation by design (option (a) from the spec). If a shared
+// core/three3DScene.js helper is extracted later, both files become thin
+// wrappers (requires index.html load-order changes — ui-refiner).
 //
 // Depends on: THREE (UMD global), SimEngine.
 
@@ -41,13 +40,14 @@ const CodeCanvas3D = (() => {
   let _onVisibilityChange = null;
   let _onContextMenu      = null; // stored so destroy() can remove it
 
-  // Orbit + zoom controls (matches TestCanvas3D — right-drag to orbit, wheel to zoom)
+  // Orbit + pan + zoom controls (matches TestCanvas3D — right-drag orbit, middle-drag pan, wheel zoom)
   const _orbit = {
     active: false, lastX: 0, lastY: 0,
     theta: Math.PI / 4,
     phi:   Math.acos(1 / Math.sqrt(3)),
     radius: Math.sqrt(300)
   };
+  const _pan = { active: false, lastX: 0, lastY: 0 };
   const _orbitTarget = new THREE.Vector3(13.75, 5, 15.0); // arena center at RENDER_SCALE=1
   let _targetZoom = 1.8;
 
@@ -281,13 +281,19 @@ const CodeCanvas3D = (() => {
     renderer.setSize(W, H);
   }
 
-  // ── Mouse / wheel (orbit + zoom only — no pan) ─────────────────────────────
+  // ── Mouse / wheel (orbit + pan + zoom) ────────────────────────────────────
 
   function onMouseDown(e) {
     if (e.button === 2) {
       _orbit.active = true;
       _orbit.lastX  = e.clientX;
       _orbit.lastY  = e.clientY;
+    } else if (e.button === 1) {
+      // Middle-button pan — prevent browser scroll-mode popup on middle-click.
+      e.preventDefault();
+      _pan.active = true;
+      _pan.lastX  = e.clientX;
+      _pan.lastY  = e.clientY;
     }
   }
 
@@ -301,10 +307,30 @@ const CodeCanvas3D = (() => {
       _orbit.lastY  = e.clientY;
       updateCameraOrbit();
     }
+    if (_pan.active && camera && renderer) {
+      const dx = e.clientX - _pan.lastX;
+      const dy = e.clientY - _pan.lastY;
+      // Pan speed: (frustum * 2) / canvasHeight / zoom — a full canvas drag
+      // pans the full visible height, matching the spec's natural-feel target.
+      // frustum = 24 for this canvas.
+      const H = renderer.domElement.clientHeight || 300;
+      const scale = (24 * 2) / H / camera.zoom;
+      const right = new THREE.Vector3();
+      const up    = new THREE.Vector3();
+      camera.getWorldDirection(right);
+      right.crossVectors(right, camera.up).normalize();
+      up.copy(camera.up);
+      _orbitTarget.addScaledVector(right, -dx * scale);
+      _orbitTarget.addScaledVector(up,     dy * scale);
+      _pan.lastX = e.clientX;
+      _pan.lastY = e.clientY;
+      updateCameraOrbit();
+    }
   }
 
   function onWindowMouseUp(e) {
     if (e.button === 2) _orbit.active = false;
+    if (e.button === 1) _pan.active   = false;
   }
 
   function onWheel(e) {
