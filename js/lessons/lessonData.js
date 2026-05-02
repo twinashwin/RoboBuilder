@@ -24,7 +24,7 @@ const LESSONS = [
          at the same power. Set the <em>power</em> and <em>seconds</em>, then press <strong>Run</strong>.</p>
       <p>Reach the <strong class="block-chip sensor">green goal zone</strong> near the top!</p>
     `,
-    hint: 'Try "Drive Both Motors" with power 5 for about 1.5 seconds. Both motors spin together, pushing the robot straight forward.',
+    hint: 'Try "Drive Both Motors" with power 5 for about 5.1 seconds. Both motors spin together, pushing the robot straight forward.',
     commonMistakes: [
       'Power too low — try 5 or higher.',
       'Duration too short — the robot stops before reaching the goal.',
@@ -49,7 +49,7 @@ const LESSONS = [
          curve around the wall.</p>
       <p>Experiment: what happens when you spin motors at <em>opposite</em> powers?</p>
     `,
-    hint: 'Drive Both Motors (power 5, 1s) to go up. Then Spin Motor A (power 5, 0.8s) to curve right. Then Drive Both Motors again to reach the goal. You can also use Turn Right/Left blocks from the Movement section.',
+    hint: 'Drive Both Motors (power 5, 3.4s) to go up. Then Spin Motor A (power 5, 2.7s) to curve right. Then Drive Both Motors again to reach the goal. You can also use Turn Right/Left blocks from the Movement section.',
     commonMistakes: [
       'Driving too far before turning — you\'ll hit the wall.',
       'Using only one motor for too long — the robot curves in a tight circle.',
@@ -74,7 +74,7 @@ const LESSONS = [
       <p>To turn exactly 90°, you can use the <strong class="block-chip drive">Turn Right</strong>
          block from the Movement section, or spin one motor briefly.</p>
     `,
-    hint: 'Repeat 4 times: Drive Both Motors (power 4, 0.7s) then Turn Right (90°). This makes a square!',
+    hint: 'Repeat 4 times: Drive Both Motors (power 4, 2.4s) then Turn Right (90°). This makes a square!',
     commonMistakes: [
       'Forgetting to put blocks INSIDE the loop — drag them onto the notch.',
       'Using 360° instead of 90° for each turn.',
@@ -97,7 +97,7 @@ const LESSONS = [
          <strong class="block-chip control">If / Else</strong> block:
          if clear, drive forward with motors; otherwise, turn.</p>
     `,
-    hint: 'Use: if (is path clear? 205px) → Drive Both Motors (power 5, 0.3s), else → Turn Right 90°. Put this in a Repeat 10 times loop.',
+    hint: 'Use: if (is path clear? 205px) → Drive Both Motors (power 5, 1.0s), else → Turn Right 90°. Put this in a Repeat 10 times loop.',
     commonMistakes: [
       'Threshold too small (e.g. 70) — robot is already touching the wall before the sensor triggers. Try 170–273.',
       'Threshold too large (e.g. 680) — robot turns far too early and never enters the corridor.',
@@ -121,7 +121,7 @@ const LESSONS = [
       <p>Use <em>Repeat Until: distance &lt; 136</em> with <em>Drive Both Motors</em> inside —
          the robot stops automatically near the wall.</p>
     `,
-    hint: 'Repeat Until: (Get Distance < 136) → inside: Drive Both Motors (power 5, 0.1s). Robot stops when near the wall.',
+    hint: 'Repeat Until: (Get Distance < 136) → inside: Drive Both Motors (power 5, 0.3s). Robot stops when near the wall.',
     commonMistakes: [
       'Threshold too small (e.g. 34) — the robot hits the wall before the condition triggers.',
       'No drive block inside the loop — robot never moves so the condition never changes.',
@@ -143,9 +143,9 @@ const LESSONS = [
       <p>Inside the loop: <em>if path clear → drive forward with motors, else → turn</em>.
          Press <strong>Stop</strong> when you're done.</p>
     `,
-    hint: 'Forever: if (is path clear? 170) → Drive Both Motors (power 5, 0.2s); else → Turn Right 90°.',
+    hint: 'Forever: if (is path clear? 170) → Drive Both Motors (power 5, 0.7s); else → Turn Right 90°.',
     commonMistakes: [
-      'Drive duration too long (e.g. 1s) — robot overshoots and hits walls before the sensor re-checks. Use 0.1–0.3 seconds.',
+      'Drive duration too long (e.g. 3.4s) — robot overshoots and hits walls before the sensor re-checks. Use 0.3–1.0 seconds.',
       'Threshold too small — robot is too close to react. Try 136–205 pixels.',
       'The Forever loop runs until you press Stop — this is normal! Press Stop when done.',
       'Putting the if/else AFTER the forever loop — it must go INSIDE it.'
@@ -167,7 +167,7 @@ const LESSONS = [
          Every time the robot turns, increase <strong>turns</strong> by 1 and
          <em>Say</em> its current value.</p>
     `,
-    hint: 'Set turns = 0. Repeat 4 times: Drive Both Motors (power 5, 0.5s) + Turn Right 90° + set turns = turns + 1 + Say turns.',
+    hint: 'Set turns = 0. Repeat 4 times: Drive Both Motors (power 5, 1.7s) + Turn Right 90° + set turns = turns + 1 + Say turns.',
     commonMistakes: [
       'Forgetting "Set turns = 0" before the loop — it might start at undefined.',
       'Using "Set" instead of "Change by 1" if you prefer the change block.',
@@ -191,11 +191,11 @@ const LESSONS = [
       </ul>
       <p>Reach the <strong class="block-chip sensor">goal zone</strong> in the top-right corner. Good luck!</p>
     `,
-    hint: 'Forever loop: if (path clear 273px) → Drive Both Motors (power 4, 0.2s); else → Turn Right 90° then Wait 0.3s.',
+    hint: 'Forever loop: if (path clear 273px) → Drive Both Motors (power 4, 0.7s); else → Turn Right 90° then Wait 1.0s.',
     commonMistakes: [
-      'Moving too fast in the maze — use power 3–4 and short durations (0.1–0.2s) so the robot checks frequently.',
+      'Moving too fast in the maze — use power 3–4 and short durations (0.3–0.7s) so the robot checks frequently.',
       'Threshold too large (e.g. 341) — robot turns before entering corridors. Try 170–273.',
-      'Not waiting after a turn — add a short Wait (0.2s) so the robot settles before re-checking.',
+      'Not waiting after a turn — add a short Wait (0.7s) so the robot settles before re-checking.',
       'Only turning right — try alternating turn directions or adding a "touching wall?" check.'
     ],
     starCriteria: { maxTime: 30, maxBlocks: 8 },
@@ -223,7 +223,7 @@ const LESSONS = [
       <p>You can also use <strong class="block-chip drive">Move Forward (pixels)</strong>
          from the Movement section for pixel-perfect control.</p>
     `,
-    hint: 'The robot starts at x=205 facing right. The goal is at x=1125. Try: Drive Both Motors (power 5, 1.5s) to go right, then Turn Left 90°, then Drive Both Motors (power 5, 0.8s) up to the goal.',
+    hint: 'The robot starts at x=205 facing right. The goal is at x=1125. Try: Drive Both Motors (power 5, 5.1s) to go right, then Turn Left 90°, then Drive Both Motors (power 5, 2.7s) up to the goal.',
     commonMistakes: [
       'Duration too long — the robot overshoots and hits the arena wall.',
       'Forgetting to turn — you need to change direction to reach the goal.',
@@ -247,11 +247,11 @@ const LESSONS = [
          until <em>Robot X &gt; 1364</em>.</p>
       <p>This technique lets you navigate precisely — even around obstacles!</p>
     `,
-    hint: 'Step 1: Repeat Until (Robot Y < 341) → Drive Both Motors (power 5, 0.1s). Step 2: Turn Right 90°. Step 3: Repeat Until (Robot X > 1364) → Drive Both Motors (power 5, 0.1s).',
+    hint: 'Step 1: Repeat Until (Robot Y < 341) → Drive Both Motors (power 5, 0.3s). Step 2: Turn Right 90°. Step 3: Repeat Until (Robot X > 1364) → Drive Both Motors (power 5, 0.3s).',
     commonMistakes: [
       'Comparing the wrong axis — Y decreases as the robot moves up (0 is the top).',
       'Using ">" instead of "<" for the Y check — since the robot moves up, Y gets smaller.',
-      'Drive duration too long inside the loop — use 0.1s so the position check happens frequently.',
+      'Drive duration too long inside the loop — use 0.3s so the position check happens frequently.',
       'Forgetting to turn between the two phases — the robot faces up initially, then needs to face right.'
     ],
     starCriteria: { maxTime: 15, maxBlocks: 7 },

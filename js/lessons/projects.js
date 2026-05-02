@@ -36,7 +36,7 @@
                 '<p>Click <strong>Run</strong> to test. The goal is reached automatically when your robot enters the green zone.</p>',
         },
       ],
-      hint: 'Spin both motors at power 5, wait about 1.5 seconds, then stop both motors. Adjust timing to hit the goal.',
+      hint: 'Spin both motors at power 5, wait about 5.1 seconds, then stop both motors. Adjust timing to hit the goal.',
     },
     {
       id: 2,
@@ -59,7 +59,7 @@
                 '<p>The goal zone is at the starting position — drive the square and land back on it!</p>',
         },
       ],
-      hint: 'Use Repeat 4: spin A+B (power 5, wait 0.5s), stop, call turnRight. Tweak wait times to close the square.',
+      hint: 'Use Repeat 4: spin A+B (power 5, wait 1.7s), stop, call turnRight. Tweak wait times to close the square.',
     },
     {
       id: 3,
@@ -101,7 +101,7 @@
         {
           title: 'Sense the Wall',
           body: '<p>Your robot has a <strong>distance sensor</strong> that tells you how far away objects are.</p>' +
-                '<p>Use an <span class="block-chip control">If... Then</span> block with <span class="block-chip sensor">Distance Ahead</span> to check if a wall is close (less than 40 pixels).</p>',
+                '<p>Use an <span class="block-chip control">If... Then</span> block with <span class="block-chip sensor">Distance Ahead</span> to check if a wall is close (less than 136 pixels).</p>',
         },
         {
           title: 'Turn and Go',
@@ -113,7 +113,7 @@
           body: '<p>The goal is past the wall. Turn when you detect it, drive around, and park in the green zone!</p>',
         },
       ],
-      hint: 'Forever loop: if distance < 40, turnRight, else spin both motors. Add a small tick/wait in the loop.',
+      hint: 'Forever loop: if distance < 136, turnRight, else spin both motors. Add a small tick/wait in the loop.',
     },
     {
       id: 5,
@@ -139,7 +139,7 @@
           body: '<p>After stopping at a wall, turn right and repeat. Chain multiple drive-until-blocked + turn sequences to navigate the corridor.</p>',
         },
       ],
-      hint: 'While path clear (threshold 30): spin both motors. Stop. TurnRight. Repeat the pattern for each corridor segment.',
+      hint: 'While path clear (threshold 102): spin both motors. Stop. TurnRight. Repeat the pattern for each corridor segment.',
     },
     {
       id: 6,
@@ -178,15 +178,15 @@
         {
           title: 'Growing Spiral',
           body: '<p>A spiral is like a square, but each side gets <strong>longer</strong>. Use a <span class="block-chip control">Repeat</span> loop and increase the drive duration each time.</p>' +
-                '<p>Hint: use a <span class="block-chip logic">Number</span> variable that increases by 0.2 each iteration.</p>',
+                '<p>Hint: use a <span class="block-chip logic">Number</span> variable that increases by 0.7 each iteration.</p>',
         },
         {
           title: 'Reach the Corner',
           body: '<p>The goal is in the top-left corner. Make your spiral big enough to reach it!</p>' +
-                '<p>Try: start with 0.3 seconds of driving, add 0.15 each loop.</p>',
+                '<p>Try: start with 1.0 seconds of driving, add 0.5 each loop.</p>',
         },
       ],
-      hint: 'Set a variable to 0.3. Repeat 6: spin both motors, wait (variable) seconds, stop, turnRight, add 0.15 to variable.',
+      hint: 'Set a variable to 1.0. Repeat 6: spin both motors, wait (variable) seconds, stop, turnRight, add 0.5 to variable.',
     },
     {
       id: 8,
@@ -213,7 +213,7 @@
                 '<p>Navigate through the obstacle field to the goal!</p>',
         },
       ],
-      hint: 'Forever: if distance < 30, turn right (brief). Else spin both motors at power 4. Add small waits.',
+      hint: 'Forever: if distance < 102, turn right (brief). Else spin both motors at power 4. Add small waits.',
     },
     {
       id: 9,
