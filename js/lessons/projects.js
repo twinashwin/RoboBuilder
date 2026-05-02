@@ -398,6 +398,11 @@
     }
   }
 
+  // Exposed so app.js can honor the active project on Reset/Run instead of
+  // falling back to the current lesson's start position.
+  window._getActiveProject = function () { return activeProject; };
+  window._setupProjectSim  = setupProjectSim;
+
   function renderProjectStep() {
     if (!activeProject) return;
     var steps = activeProject.steps;

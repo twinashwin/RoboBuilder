@@ -1577,8 +1577,9 @@
       return;
     }
 
-    const lesson = LESSONS[currentLessonIdx];
-    const s = (lesson && (lesson.startPosition || lesson.robotStart)) || { x: 122, y: 90, angleDeg: 0 };
+    const proj = (typeof window._getActiveProject === 'function') ? window._getActiveProject() : null;
+    const startSrc = proj || LESSONS[currentLessonIdx];
+    const s = (startSrc && (startSrc.startPosition || startSrc.robotStart)) || { x: 122, y: 90, angleDeg: 0 };
     SimEngine.setStartPosition(s.x, s.y, s.angleDeg || 0);
     SimEngine.clearTrail();
     _runGoalReached = false;
@@ -1597,7 +1598,12 @@
 
   function onResetSim() {
     CodeRunner.stop();
-    loadLessonSim(currentLessonIdx);
+    const proj = (typeof window._getActiveProject === 'function') ? window._getActiveProject() : null;
+    if (proj && typeof window._setupProjectSim === 'function') {
+      window._setupProjectSim(proj);
+    } else {
+      loadLessonSim(currentLessonIdx);
+    }
     const led = document.getElementById('sim-led');
     if (led) led.className = 'sim-led led-off';
     if (statusEl) statusEl.textContent = '';
