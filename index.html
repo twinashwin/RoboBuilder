@@ -105,13 +105,17 @@
 
     <!-- Center: Tab buttons -->
     <div id="tab-btns">
-      <button class="tab-btn active" data-tab="build">
+      <button class="tab-btn active" data-tab="build" aria-label="Build tab">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
         <span class="nav-label">Build</span>
       </button>
-      <button class="tab-btn" data-tab="code">
+      <button class="tab-btn" data-tab="code" aria-label="Code tab">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         <span class="nav-label">Code</span>
+      </button>
+      <button class="tab-btn" data-tab="test" aria-label="Test tab">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21"/><line x1="19" y1="3" x2="19" y2="21"/></svg>
+        <span class="nav-label">Test</span>
       </button>
     </div>
 
@@ -343,10 +347,11 @@
               <div id="sim-led" title="LED"></div>
             </div>
           </div>
-          <div id="sim-canvas-wrap">
+          <div id="sim-canvas-wrap" style="display:none">
             <canvas id="sim-canvas" width="440" height="360"></canvas>
             <div id="goal-banner" hidden>🎯 Goal Reached!</div>
           </div>
+          <div id="code-canvas-3d-wrap"></div>
           <div id="sim-controls">
             <button id="btn-run-panel" class="sim-btn sim-run">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>
@@ -402,6 +407,13 @@
 
       </div>
     </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       TEST TAB
+  ═══════════════════════════════════════════════════════ -->
+  <div id="view-test" class="view">
+    <div id="test-canvas-3d-wrap"></div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════
@@ -500,6 +512,8 @@
           crossorigin="anonymous"></script>
   <script src="js/canvas/buildCanvas3D.js"></script>
   <script src="js/canvas/simCanvas.js"></script>
+  <script src="js/canvas/codeCanvas3D.js"></script>
+  <script src="js/canvas/testCanvas3D.js"></script>
   <!-- coding: code runner reads canvas globals -->
   <script src="js/coding/codeRunner.js"></script>
   <!-- auth: Supabase client (module script — defers, but ordered before scripts that read window.supabase) -->

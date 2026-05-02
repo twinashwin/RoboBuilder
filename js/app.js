@@ -434,7 +434,10 @@
       if (makeBlockOverlay && !makeBlockOverlay.hasAttribute('hidden')) return;
 
       e.preventDefault();
-      switchTab(activeTab === 'build' ? 'code' : 'build');
+      // Cycle through build → code → test → build
+      const tabCycle = ['build', 'code', 'test'];
+      const nextIdx = (tabCycle.indexOf(activeTab) + 1) % tabCycle.length;
+      switchTab(tabCycle[nextIdx]);
     });
 
     document.getElementById('btn-close-shortcuts').addEventListener('click', () => {
@@ -573,13 +576,18 @@
 
   // ── Tab switching ──────────────────────────────────────────────────────────
 
+  // Lazy-init flags for the two new 3D canvases
+  let _codeCanvas3DInited = false;
+  let _testCanvas3DInited = false;
+
   function switchTab(tab) {
     if (tab === activeTab) return;
     activeTab = tab;
     window._activeTab = tab;
 
-    ['build', 'code'].forEach(name => {
-      document.getElementById('view-' + name).classList.toggle('active', name === tab);
+    ['build', 'code', 'test'].forEach(name => {
+      const el = document.getElementById('view-' + name);
+      if (el) el.classList.toggle('active', name === tab);
     });
     document.querySelectorAll('.tab-btn').forEach(btn =>
       btn.classList.toggle('active', btn.dataset.tab === tab)
@@ -591,9 +599,9 @@
     const arrivedBtn = document.querySelector('.tab-btn[data-tab="' + tab + '"]');
     if (arrivedBtn) arrivedBtn.classList.remove('tut-highlight-nav');
 
-    // Show/hide nav code actions
+    // Show/hide nav code actions (visible on Code and Test tabs)
     const codeActions = document.getElementById('nav-code-actions');
-    if (codeActions) codeActions.classList.toggle('visible', tab === 'code');
+    if (codeActions) codeActions.classList.toggle('visible', tab === 'code' || tab === 'test');
 
     if (tab === 'code') {
       if (!blocklyReady) initBlockly();
@@ -601,6 +609,68 @@
       SimCanvas.setRobotConfig(robotConfig);
       loadLessonSim(currentLessonIdx);
       updateHardwarePanel(robotConfig);
+
+      // Lazy-init CodeCanvas3D on first visit to Code tab
+      if (!_codeCanvas3DInited && typeof CodeCanvas3D !== 'undefined' && CodeCanvas3D) {
+        const wrap = document.getElementById('code-canvas-3d-wrap');
+        if (wrap) {
+          _codeCanvas3DInited = true; // set AFTER confirming container exists
+          CodeCanvas3D.init(wrap);
+          CodeCanvas3D.setRobotConfig(robotConfig);
+          _push3DFieldState(CodeCanvas3D);
+        }
+      }
+    }
+
+    if (tab === 'test') {
+      // Lazy-init TestCanvas3D on first visit to Test tab
+      if (!_testCanvas3DInited && typeof TestCanvas3D !== 'undefined' && TestCanvas3D) {
+        const wrap = document.getElementById('test-canvas-3d-wrap');
+        if (wrap) {
+          _testCanvas3DInited = true; // set AFTER confirming container exists
+          TestCanvas3D.init(wrap);
+          TestCanvas3D.setRobotConfig(robotConfig);
+          _push3DFieldState(TestCanvas3D);
+        }
+      }
+    }
+
+    // Keep at most ONE 3D rAF loop active at a time
+    if (typeof CodeCanvas3D !== 'undefined' && CodeCanvas3D) {
+      CodeCanvas3D.setActive(tab === 'code');
+    }
+    if (typeof TestCanvas3D !== 'undefined' && TestCanvas3D) {
+      TestCanvas3D.setActive(tab === 'test');
+    }
+  }
+
+  // Helper: push current field config (obstacles + goal zone) to a 3D canvas.
+  // Respects active project precedence, mirroring onResetSim / loadLessonSim.
+  function _push3DFieldState(canvas3D) {
+    if (!canvas3D) return;
+    const proj = (typeof window._getActiveProject === 'function') ? window._getActiveProject() : null;
+    if (proj) {
+      canvas3D.setObstacles(proj.obstacles || []);
+      canvas3D.setGoalZoneConfig(proj.goalZone || null);
+    } else {
+      const lesson = LESSONS[currentLessonIdx];
+      if (lesson) {
+        canvas3D.setObstacles(lesson.obstacles || []);
+        canvas3D.setGoalZoneConfig(lesson.goalZone || null);
+      }
+    }
+  }
+
+  // Push field config to all initialised 3D canvases (used by loadLessonSim
+  // and onRobotConfigChanged so the 3D views stay in sync even when hidden).
+  function _pushFieldToAll3D(obstacles, goalZone) {
+    if (typeof CodeCanvas3D !== 'undefined' && CodeCanvas3D && _codeCanvas3DInited) {
+      CodeCanvas3D.setObstacles(obstacles || []);
+      CodeCanvas3D.setGoalZoneConfig(goalZone || null);
+    }
+    if (typeof TestCanvas3D !== 'undefined' && TestCanvas3D && _testCanvas3DInited) {
+      TestCanvas3D.setObstacles(obstacles || []);
+      TestCanvas3D.setGoalZoneConfig(goalZone || null);
     }
   }
 
@@ -1252,6 +1322,12 @@
     robotConfig = config || { parts: [] };
     _checkPartChangeFeedback(robotConfig.parts);
     SimCanvas.setRobotConfig(robotConfig);
+    if (typeof CodeCanvas3D !== 'undefined' && CodeCanvas3D && _codeCanvas3DInited) {
+      CodeCanvas3D.setRobotConfig(robotConfig);
+    }
+    if (typeof TestCanvas3D !== 'undefined' && TestCanvas3D && _testCanvas3DInited) {
+      TestCanvas3D.setRobotConfig(robotConfig);
+    }
 
     // Update sensor range
     const sensorPart = robotConfig.parts.find(p => p.type === 'distance-sensor');
@@ -1536,6 +1612,9 @@
     SimEngine.setGoalZone(lesson.goalZone || null);
     SimCanvas.redraw();
     if (statusEl) statusEl.textContent = '';
+
+    // Sync 3D canvases (guarded — they may not be inited yet if tabs haven't been visited)
+    _pushFieldToAll3D(lesson.obstacles || [], lesson.goalZone || null);
   }
 
   // ── Sim controls ───────────────────────────────────────────────────────────

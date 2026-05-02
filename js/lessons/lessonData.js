@@ -1,5 +1,13 @@
 // Lesson data for simulation canvas.
 // Lessons 1-3 auto-load the starter robot (autoLoadStarter: true).
+//
+// Obstacle convention:
+//   { x, y, width, height, obstacleHeight? }
+// All values are in 2D sim pixels. The optional `obstacleHeight` field is in
+// 3D world units (1 world unit = 40 sim px; default ≈ 0.75 world units / 30 sim
+// px) and is consumed only by the 3D field renderers (testCanvas3D /
+// codeCanvas3D). Omit it for the default barrier-height look. Existing lessons
+// without `obstacleHeight` are fully backward-compatible.
 
 const LESSONS = [
   {

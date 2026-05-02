@@ -171,7 +171,7 @@
            + '<li><code>turnRight</code> to steer</li>'
            + '<li><span class="block-chip motor">Stop Motor</span> to finish</li>'
            + '</ul>'
-           + '<p>Reaching the goal completes the tutorial!</p>',
+           + '<p>Looks good — once it\'s working here, head over to the <strong>Test tab</strong> to see your robot in a full 3D field!</p>',
       highlightSel: null,
       nextLabel:    null,
       helperLabel:  'Show Hint',

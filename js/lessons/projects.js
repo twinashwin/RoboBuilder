@@ -396,6 +396,15 @@
       SimCanvas.setGoalZoneConfig(project.goalZone || null);
       SimCanvas.redraw();
     }
+    // Keep 3D canvases in sync (guarded — may not be inited yet)
+    if (typeof CodeCanvas3D !== 'undefined' && CodeCanvas3D) {
+      CodeCanvas3D.setObstacles(project.obstacles || []);
+      CodeCanvas3D.setGoalZoneConfig(project.goalZone || null);
+    }
+    if (typeof TestCanvas3D !== 'undefined' && TestCanvas3D) {
+      TestCanvas3D.setObstacles(project.obstacles || []);
+      TestCanvas3D.setGoalZoneConfig(project.goalZone || null);
+    }
   }
 
   // Exposed so app.js can honor the active project on Reset/Run instead of

@@ -1156,12 +1156,14 @@ html, body {
 
 /* Field preview panel (top-right) */
 #field-panel {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   padding-bottom: 8px;
+  overflow: hidden;
 }
 #field-panel .panel-hdr { padding: 8px 12px 6px; }
 
@@ -1191,6 +1193,44 @@ html, body {
 }
 #sim-canvas-wrap.sim-running #sim-canvas {
   box-shadow: 0 0 0 2px #3B82F6, 0 8px 28px rgba(59,130,246,0.22);
+}
+
+/* ── 3D canvas wrappers ─────────────────────────────────── */
+#code-canvas-3d-wrap {
+  position: relative;
+  width: 100%;
+  /* Match the height of the old 2D sim-canvas-wrap so the layout doesn't shift.
+     The 2D canvas was 440×360 with a 10px horizontal padding; we keep the same
+     aspect-approximate height so the right panel looks identical. */
+  flex: 1 1 0;
+  min-height: 200px;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  margin: 0 10px 0;
+  border: 1px solid var(--border-mid);
+  box-shadow: var(--shadow-sm);
+}
+#code-canvas-3d-wrap canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: var(--r-md);
+}
+
+/* ── Test tab view ──────────────────────────────────────── */
+#view-test {
+  background: var(--bg-base);
+}
+#test-canvas-3d-wrap {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+#test-canvas-3d-wrap canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 #goal-banner {
