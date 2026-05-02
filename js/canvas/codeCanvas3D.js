@@ -1,11 +1,11 @@
-// Code Canvas 3D — fixed-camera 3D field renderer for the right-side viewer
-// slot in the Code tab. Render-only: NO orbit, NO pan, NO zoom.
+// Code Canvas 3D — 3D field renderer for the right-side viewer slot in the
+// Code tab. Supports orbit (right-drag) and zoom (wheel); no middle-button pan.
 //
 // This is the sibling of testCanvas3D.js. The two files share ~95% of their
-// implementation by design (option (a) from the spec) — the deliberate diff
-// is that this file does not register mouse/wheel listeners. If a shared
-// core/three3DScene.js helper is extracted later, both files become thin
-// wrappers; that refactor needs index.html load-order changes (ui-refiner).
+// implementation by design (option (a) from the spec) — the only diff is that
+// codeCanvas3D omits middle-button pan. If a shared core/three3DScene.js helper
+// is extracted later, both files become thin wrappers (requires index.html
+// load-order changes — ui-refiner).
 //
 // Depends on: THREE (UMD global), SimEngine.
 
@@ -29,8 +29,8 @@ const CodeCanvas3D = (() => {
   const simToWorldZ = (simY) => ((simY - OFFSET_Y) / SCALE) * RENDER_SCALE;
 
   // Barrier height — kept at visual wall height (world units), independent of
-  // arena footprint.
-  const FIELD_BARRIER_HEIGHT = 10;
+  // arena footprint. 2 = 1/5 of the original 10.
+  const FIELD_BARRIER_HEIGHT = 2;
 
   let scene, camera, renderer;
   let groundPlane = null;
@@ -39,6 +39,17 @@ const CodeCanvas3D = (() => {
   let animFrameId = null;
   let isActive    = true;
   let _onVisibilityChange = null;
+  let _onContextMenu      = null; // stored so destroy() can remove it
+
+  // Orbit + zoom controls (matches TestCanvas3D — right-drag to orbit, wheel to zoom)
+  const _orbit = {
+    active: false, lastX: 0, lastY: 0,
+    theta: Math.PI / 4,
+    phi:   Math.acos(1 / Math.sqrt(3)),
+    radius: Math.sqrt(300)
+  };
+  const _orbitTarget = new THREE.Vector3(13.75, 5, 15.0); // arena center at RENDER_SCALE=1
+  let _targetZoom = 1.8;
 
   let robotRoot = null;
   let obstaclesRoot = null;
@@ -141,13 +152,8 @@ const CodeCanvas3D = (() => {
     camera = new THREE.OrthographicCamera(
       -frustum * aspect, frustum * aspect, frustum, -frustum, 0.1, 2000
     );
-    // Fixed isometric pose — offset toward arena center (13.75, 0, 15) in world units.
-    const center = new THREE.Vector3(13.75, 5, 15);
-    camera.position.set(center.x + 30, center.y + 30, center.z + 30);
-    camera.up.set(0, 1, 0);
-    camera.lookAt(center);
-    camera.zoom = 1.8;
-    camera.updateProjectionMatrix();
+    camera.zoom = _targetZoom;
+    updateCameraOrbit();
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(W, H);
@@ -187,8 +193,15 @@ const CodeCanvas3D = (() => {
 
     rebuildBarriers();
 
-    // Resize is the ONLY window listener — needed because the right-side
-    // viewer slot can change size when the user toggles panels.
+    // Orbit (right-drag) + zoom (wheel) — same feel as TestCanvas3D.
+    _onContextMenu = e => e.preventDefault();
+    renderer.domElement.addEventListener('mousedown',  onMouseDown);
+    renderer.domElement.addEventListener('contextmenu', _onContextMenu);
+    renderer.domElement.addEventListener('wheel',      onWheel, { passive: false });
+    window.addEventListener('mousemove', onWindowMouseMove);
+    window.addEventListener('mouseup',   onWindowMouseUp);
+
+    // Resize listener — keeps frustum aspect correct when the viewer slot resizes.
     window.addEventListener('resize', onResize);
 
     _onVisibilityChange = () => {
@@ -215,6 +228,12 @@ const CodeCanvas3D = (() => {
     animFrameId = requestAnimationFrame(animate);
     _time += 0.016;
 
+    // Smooth zoom lerp
+    if (camera && Math.abs(camera.zoom - _targetZoom) > 0.001) {
+      camera.zoom += (_targetZoom - camera.zoom) * 0.14;
+      camera.updateProjectionMatrix();
+    }
+
     if (robotRoot && typeof SimEngine !== 'undefined') {
       const r = SimEngine.getRobot();
       robotRoot.position.x = simToWorldX(r.x);
@@ -232,7 +251,20 @@ const CodeCanvas3D = (() => {
     if (renderer && scene && camera) renderer.render(scene, camera);
   }
 
-  // ── Resize (camera angle stays put — only the frustum aspect updates) ──────
+  // ── Camera orbit ───────────────────────────────────────────────────────────
+
+  function updateCameraOrbit() {
+    if (!camera) return;
+    const x = _orbitTarget.x + _orbit.radius * Math.sin(_orbit.phi) * Math.cos(_orbit.theta);
+    const y = _orbitTarget.y + _orbit.radius * Math.cos(_orbit.phi);
+    const z = _orbitTarget.z + _orbit.radius * Math.sin(_orbit.phi) * Math.sin(_orbit.theta);
+    camera.position.set(x, y, z);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(_orbitTarget);
+    camera.updateProjectionMatrix();
+  }
+
+  // ── Resize (frustum aspect only — orbit direction preserved) ───────────────
 
   function onResize() {
     if (!container || !camera || !renderer) return;
@@ -247,6 +279,37 @@ const CodeCanvas3D = (() => {
     camera.bottom = -frustum;
     camera.updateProjectionMatrix();
     renderer.setSize(W, H);
+  }
+
+  // ── Mouse / wheel (orbit + zoom only — no pan) ─────────────────────────────
+
+  function onMouseDown(e) {
+    if (e.button === 2) {
+      _orbit.active = true;
+      _orbit.lastX  = e.clientX;
+      _orbit.lastY  = e.clientY;
+    }
+  }
+
+  function onWindowMouseMove(e) {
+    if (_orbit.active) {
+      const dx = e.clientX - _orbit.lastX;
+      const dy = e.clientY - _orbit.lastY;
+      _orbit.theta += dx * 0.008;
+      _orbit.phi    = Math.max(0.1, Math.min(Math.PI * 0.48, _orbit.phi - dy * 0.008));
+      _orbit.lastX  = e.clientX;
+      _orbit.lastY  = e.clientY;
+      updateCameraOrbit();
+    }
+  }
+
+  function onWindowMouseUp(e) {
+    if (e.button === 2) _orbit.active = false;
+  }
+
+  function onWheel(e) {
+    e.preventDefault();
+    _targetZoom = Math.max(0.5, Math.min(3.5, _targetZoom - e.deltaY * 0.0015));
   }
 
   // ── Ground / Grid ──────────────────────────────────────────────────────────
@@ -613,6 +676,14 @@ const CodeCanvas3D = (() => {
       document.removeEventListener('visibilitychange', _onVisibilityChange);
       _onVisibilityChange = null;
     }
+    if (renderer) {
+      renderer.domElement.removeEventListener('mousedown',  onMouseDown);
+      renderer.domElement.removeEventListener('contextmenu', _onContextMenu);
+      renderer.domElement.removeEventListener('wheel',       onWheel);
+      _onContextMenu = null;
+    }
+    window.removeEventListener('mousemove', onWindowMouseMove);
+    window.removeEventListener('mouseup',   onWindowMouseUp);
     window.removeEventListener('resize', onResize);
 
     if (scene) {

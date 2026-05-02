@@ -37,7 +37,8 @@ const TestCanvas3D = (() => {
   const simToWorldZ = (simY) => ((simY - OFFSET_Y) / SCALE) * RENDER_SCALE;
 
   // Field barriers — same height for every edge, every lesson.
-  const FIELD_BARRIER_HEIGHT = 10;
+  // 2 = 1/5 of the original 10.
+  const FIELD_BARRIER_HEIGHT = 2;
 
   // ── State ──────────────────────────────────────────────────────────────────
   let scene, camera, renderer;

@@ -489,10 +489,10 @@
     const ctx = canvas.getContext('2d');
     const w = canvas.width, h = canvas.height;
 
-    // Scale factors: arena dims from lesson or default 440×360, thumb is w×h
+    // Scale factors: arena dims from lesson or default 1500×1500, thumb is w×h
     const lesson0 = LESSONS[currentLessonIdx];
-    const arenaW = (lesson0 && lesson0.arenaWidth)  || 440;
-    const arenaH = (lesson0 && lesson0.arenaHeight) || 360;
+    const arenaW = (lesson0 && lesson0.arenaWidth)  || 1500;
+    const arenaH = (lesson0 && lesson0.arenaHeight) || 1500;
     const sx = w / arenaW, sy = h / arenaH;
 
     // Checkerboard background
@@ -1600,8 +1600,8 @@
     }
 
     // Variable arena size
-    const aw = lesson.arenaWidth  || 440;
-    const ah = lesson.arenaHeight || 360;
+    const aw = lesson.arenaWidth  || 1500;
+    const ah = lesson.arenaHeight || 1500;
     SimEngine.init(aw, ah);
     SimCanvas.setDimensions(aw, ah);
 
