@@ -20,7 +20,7 @@
 
   // ── DOM refs ───────────────────────────────────────────────────────────────
   var btPanel, btProgressFill, btStepNum, btTotalEl, btTitle, btBody,
-      btHelperBtn, btNextBtn, btSkipBtn;
+      btHelperBtn, btNextBtn, btSkipBtn, btSkipStepBtn;
 
   // ── Step definitions ───────────────────────────────────────────────────────
   // The part composition and positions match BuildCanvas3D.spawnStarterRobot 1:1,
@@ -307,12 +307,14 @@
     btHelperBtn   = document.getElementById('build-tut-btn-helper');
     btNextBtn     = document.getElementById('build-tut-btn-next');
     btSkipBtn     = document.getElementById('build-tut-btn-skip');
+    btSkipStepBtn = document.getElementById('build-tut-btn-skip-step');
 
     if (!btPanel) return;
 
     if (btTotalEl) btTotalEl.textContent = TOTAL_STEPS;
     btSkipBtn.addEventListener('click', skipTutorial);
     btNextBtn.addEventListener('click', function () { advanceStep(); });
+    if (btSkipStepBtn) btSkipStepBtn.addEventListener('click', function () { advanceStep(); });
   }
 
   // ── Should auto-start? ─────────────────────────────────────────────────────
@@ -375,6 +377,15 @@
       btNextBtn.className = 'tut-next-btn cta';
     } else {
       btNextBtn.setAttribute('hidden', '');
+    }
+
+    // Skip Step button — show on all steps except the last
+    if (btSkipStepBtn) {
+      if (idx < TOTAL_STEPS - 1) {
+        btSkipStepBtn.removeAttribute('hidden');
+      } else {
+        btSkipStepBtn.setAttribute('hidden', '');
+      }
     }
 
     // Helper button

@@ -24,7 +24,7 @@ const CodeCanvas3D = (() => {
   const simToWorldX = (simX) => (simX - OFFSET_X) / SCALE;
   const simToWorldZ = (simY) => (simY - OFFSET_Y) / SCALE;
 
-  const FIELD_BARRIER_HEIGHT = 0.75;
+  const FIELD_BARRIER_HEIGHT = 2.5;
 
   let scene, camera, renderer;
   let groundPlane = null;
@@ -139,7 +139,7 @@ const CodeCanvas3D = (() => {
     camera.position.set(center.x + 10, center.y + 10, center.z + 10);
     camera.up.set(0, 1, 0);
     camera.lookAt(center);
-    camera.zoom = 0.95; // dialed for the right-side viewer slot
+    camera.zoom = 1.8; // dialed for the right-side viewer slot
     camera.updateProjectionMatrix();
 
     renderer = new THREE.WebGLRenderer({ antialias: true });

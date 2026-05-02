@@ -19,7 +19,7 @@
 
   // ── DOM refs ─────────────────────────────────────────────────────────────────
   var tutPanel, progressFill, stepNumEl, stepTotalEl, titleEl, bodyEl,
-      hwStatusEl, helperBtn, nextBtn, skipBtn;
+      hwStatusEl, helperBtn, nextBtn, skipBtn, skipStepBtn;
 
   // ── Block card selectors ─────────────────────────────────────────────────────
   var SEL_SPIN_MOTOR = '#blocks-list .bc-items .block-card.bc-motor:nth-child(1)';
@@ -218,7 +218,9 @@
     helperBtn    = document.getElementById('tut-btn-helper');
     nextBtn      = document.getElementById('tut-btn-next');
     skipBtn      = document.getElementById('tut-btn-skip');
+    skipStepBtn  = document.getElementById('tut-btn-skip-step');
     if (skipBtn) skipBtn.addEventListener('click', skipTutorial);
+    if (skipStepBtn) skipStepBtn.addEventListener('click', skipCurrentStep);
     if (stepTotalEl) stepTotalEl.textContent = TOTAL_STEPS;
   }
 
@@ -306,6 +308,11 @@
       nextBtn.onclick = null;
     }
 
+    // Skip Step button — available on all steps except the final one
+    if (skipStepBtn) {
+      skipStepBtn.hidden = (idx >= TOTAL_STEPS - 1);
+    }
+
     // Highlight
     if (step.highlightSel) applyHighlight(step.highlightSel);
 
@@ -321,11 +328,26 @@
     goToStep(currentStep + 1);
   }
 
+  // Skip the current step only (advances one step, same as clicking Next).
+  // Visually distinct from the "Skip Tutorial" button which exits entirely.
+  function skipCurrentStep() {
+    if (steps[currentStep] && steps[currentStep].onExit) {
+      steps[currentStep].onExit();
+    }
+    stopWatchingRun();
+    advanceStep();
+  }
+
   function skipTutorial() {
     stopBlocklyListener();
     stopWatchingRun();
     clearHighlight();
     endTutorial();
+    // Notify projects.js (and any other listener) that the tutorial panel
+    // is now hidden so they can show the projects panel.
+    window.dispatchEvent(new CustomEvent('robobuilder:tutorial-closed', {
+      detail: { reason: 'skipped' }
+    }));
   }
 
   // ── Highlight ─────────────────────────────────────────────────────────────────
@@ -675,6 +697,11 @@
 
     // Fire completion event for login flow
     window.dispatchEvent(new CustomEvent('robobuilder:tutorial-complete'));
+
+    // Pulse the Test tab button to direct the user there — mirrors the same
+    // pattern that buildTutorial.js uses to pulse the Code tab at the end.
+    var testTabBtn = document.querySelector('.tab-btn[data-tab="test"]');
+    if (testTabBtn) testTabBtn.classList.add('tut-highlight-nav');
   }
 
 })();

@@ -299,26 +299,31 @@
       }, 2000);
     });
 
-    // If tutorial is already done, show projects on code tab switch
-    if (localStorage.getItem('robobuilder_tutorial_v1') === 'done') {
-      // Listen for code tab activation
-      var checkCodeTab = function () {
-        if (window._activeTab !== 'code') return;
-        // Don't override an actively-running tutorial. The replay button or the
-        // build->code transition can re-open the tutorial panel even after the
-        // tutorial has been completed once. Showing projects on top would hide it.
-        var tutPanel = document.getElementById('tutorial-right');
-        if (tutPanel && !tutPanel.hasAttribute('hidden')) return;
-        showProjectsPanel();
-      };
-      document.querySelectorAll('.tab-btn[data-tab="code"]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          setTimeout(checkCodeTab, 600);
-        });
+    // Also show projects when the tutorial is skipped (tutorial panel hidden
+    // without completing — user dismissed mid-flow)
+    window.addEventListener('robobuilder:tutorial-closed', function () {
+      setTimeout(function () {
+        if (window._activeTab === 'code') showProjectsPanel();
+      }, 300);
+    });
+
+    // Show projects on code tab switch whenever the tutorial panel is not open.
+    // This covers: tutorial already done, tutorial was skipped, or user never
+    // triggered the tutorial at all.
+    var checkCodeTab = function () {
+      if (window._activeTab !== 'code') return;
+      // Don't override an actively-running tutorial.
+      var tutPanel = document.getElementById('tutorial-right');
+      if (tutPanel && !tutPanel.hasAttribute('hidden')) return;
+      showProjectsPanel();
+    };
+    document.querySelectorAll('.tab-btn[data-tab="code"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        setTimeout(checkCodeTab, 600);
       });
-      // Also check on load if already on code tab
-      setTimeout(checkCodeTab, 800);
-    }
+    });
+    // Also check on load if already on code tab
+    setTimeout(checkCodeTab, 800);
   });
 
   // ── Show/Hide ─────────────────────────────────────────────────────────────────

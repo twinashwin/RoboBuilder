@@ -33,7 +33,7 @@ const TestCanvas3D = (() => {
   const simToWorldZ = (simY) => (simY - OFFSET_Y) / SCALE;
 
   // Field barriers — same height for every edge, every lesson.
-  const FIELD_BARRIER_HEIGHT = 0.75; // ≈ 30 sim px
+  const FIELD_BARRIER_HEIGHT = 2.5; // taller walls for visual clarity
 
   // ── State ──────────────────────────────────────────────────────────────────
   let scene, camera, renderer;
@@ -67,7 +67,7 @@ const TestCanvas3D = (() => {
   };
   const _pan = { active: false, lastX: 0, lastY: 0 };
   const _orbitTarget = new THREE.Vector3(0, 0.5, 0.75); // arena center-ish
-  let _targetZoom = 1.0;
+  let _targetZoom = 1.6;
 
   // Materials (instantiated in initMaterials)
   const M = {};

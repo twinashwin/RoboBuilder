@@ -49,7 +49,7 @@
   --sidebar-w:    220px;
   --right-w:      272px;
   --code-left-w:  432px;  /* two 216px sub-panels side-by-side */
-  --code-right-w: 420px;  /* ~3x the original 272px right panel */
+  --code-right-w: 480px;  /* wide right panel — field preview + tutorial + projects */
   --r-sm:   6px;
   --r-md:  10px;
   --r-lg:  14px;
@@ -1199,11 +1199,9 @@ html, body {
 #code-canvas-3d-wrap {
   position: relative;
   width: 100%;
-  /* Match the height of the old 2D sim-canvas-wrap so the layout doesn't shift.
-     The 2D canvas was 440×360 with a 10px horizontal padding; we keep the same
-     aspect-approximate height so the right panel looks identical. */
+  /* Expanded height so the 3D field fills more of the right column. */
   flex: 1 1 0;
-  min-height: 200px;
+  min-height: 340px;
   overflow: hidden;
   border-radius: var(--r-md);
   margin: 0 10px 0;
@@ -2339,6 +2337,24 @@ button:disabled { opacity: 0.35; cursor: not-allowed !important; }
   white-space: nowrap;
 }
 #tut-btn-helper:hover { background: var(--bg-base); }
+
+/* Skip Step — secondary action, less prominent than Next */
+.tut-skip-step-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 0.4rem 0.65rem;
+  border-radius: var(--r-lg);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.tut-skip-step-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-1);
+}
 
 .tut-next-btn {
   background: var(--accent);
@@ -3743,7 +3759,7 @@ button:disabled { opacity: 0.35; cursor: not-allowed !important; }
 @media (max-width: 1280px) {
   :root {
     --code-left-w:  380px;
-    --code-right-w: 360px;
+    --code-right-w: 420px;
     --right-w:      240px;
   }
 }
@@ -3752,7 +3768,7 @@ button:disabled { opacity: 0.35; cursor: not-allowed !important; }
 @media (max-width: 1050px) {
   :root {
     --code-left-w:  300px;
-    --code-right-w: 300px;
+    --code-right-w: 340px;
     --sidebar-w:    190px;
     --right-w:      200px;
   }
