@@ -135,6 +135,14 @@ html, body {
   color: var(--text-1);
   -webkit-font-smoothing: antialiased;
 }
+/* Code tab UI scale — shrinks only the Code view to 67% so the blocks
+   panel, Blockly workspace, field viewer, and hardware panel all fit on
+   screen. `zoom` is preferred over `transform: scale()` because it
+   preserves layout semantics (children scale within their container, no
+   width/height compensation needed). Build tab is intentionally unscaled. */
+#view-code {
+  zoom: 0.67;
+}
 
 /* ── Focus styles (keyboard nav accessibility) ────────────── */
 :focus { outline: none; }
@@ -1213,22 +1221,6 @@ html, body {
   width: 100% !important;
   height: 100% !important;
   border-radius: var(--r-md);
-}
-
-/* ── Test tab view ──────────────────────────────────────── */
-#view-test {
-  background: var(--bg-base);
-}
-#test-canvas-3d-wrap {
-  position: relative;
-  flex: 1 1 0;
-  min-height: 0;
-  overflow: hidden;
-}
-#test-canvas-3d-wrap canvas {
-  display: block;
-  width: 100% !important;
-  height: 100% !important;
 }
 
 #goal-banner {

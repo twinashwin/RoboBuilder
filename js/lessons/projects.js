@@ -428,14 +428,10 @@
       SimCanvas.setGoalZoneConfig(project.goalZone || null);
       SimCanvas.redraw();
     }
-    // Keep 3D canvases in sync (guarded — may not be inited yet)
+    // Keep the Code-tab 3D canvas in sync (guarded — may not be inited yet)
     if (typeof CodeCanvas3D !== 'undefined' && CodeCanvas3D) {
       CodeCanvas3D.setObstacles(project.obstacles || []);
       CodeCanvas3D.setGoalZoneConfig(project.goalZone || null);
-    }
-    if (typeof TestCanvas3D !== 'undefined' && TestCanvas3D) {
-      TestCanvas3D.setObstacles(project.obstacles || []);
-      TestCanvas3D.setGoalZoneConfig(project.goalZone || null);
     }
   }
 

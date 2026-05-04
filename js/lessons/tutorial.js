@@ -176,7 +176,7 @@
            + '<li><code>turnRight</code> to steer</li>'
            + '<li><span class="block-chip motor">Stop Motor</span> to finish</li>'
            + '</ul>'
-           + '<p>Looks good — once it\'s working here, head over to the <strong>Test tab</strong> to see your robot in a full 3D field!</p>',
+           + '<p>Looks good — press <strong>Run</strong> and watch your robot navigate to the goal zone!</p>',
       highlightSel: null,
       nextLabel:    null,
       helperLabel:  'Show Hint',
@@ -715,11 +715,6 @@
 
     // Fire completion event for login flow
     window.dispatchEvent(new CustomEvent('robobuilder:tutorial-complete'));
-
-    // Pulse the Test tab button to direct the user there — mirrors the same
-    // pattern that buildTutorial.js uses to pulse the Code tab at the end.
-    var testTabBtn = document.querySelector('.tab-btn[data-tab="test"]');
-    if (testTabBtn) testTabBtn.classList.add('tut-highlight-nav');
   }
 
 })();

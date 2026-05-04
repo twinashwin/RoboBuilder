@@ -113,10 +113,6 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         <span class="nav-label">Code</span>
       </button>
-      <button class="tab-btn" data-tab="test" aria-label="Test tab">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21"/><line x1="19" y1="3" x2="19" y2="21"/></svg>
-        <span class="nav-label">Test</span>
-      </button>
     </div>
 
     <!-- Right: actions -->
@@ -416,13 +412,6 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════════════
-       TEST TAB
-  ═══════════════════════════════════════════════════════ -->
-  <div id="view-test" class="view">
-    <div id="test-canvas-3d-wrap"></div>
-  </div>
-
-  <!-- ═══════════════════════════════════════════════════════
        MAKE A BLOCK MODAL
   ═══════════════════════════════════════════════════════ -->
   <div id="make-block-overlay" hidden>
@@ -519,7 +508,6 @@
   <script src="js/canvas/buildCanvas3D.js"></script>
   <script src="js/canvas/simCanvas.js"></script>
   <script src="js/canvas/codeCanvas3D.js"></script>
-  <script src="js/canvas/testCanvas3D.js"></script>
   <!-- coding: code runner reads canvas globals -->
   <script src="js/coding/codeRunner.js"></script>
   <!-- auth: Supabase client (module script — defers, but ordered before scripts that read window.supabase) -->

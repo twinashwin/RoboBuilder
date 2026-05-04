@@ -434,8 +434,8 @@
       if (makeBlockOverlay && !makeBlockOverlay.hasAttribute('hidden')) return;
 
       e.preventDefault();
-      // Cycle through build → code → test → build
-      const tabCycle = ['build', 'code', 'test'];
+      // Cycle through build → code → build
+      const tabCycle = ['build', 'code'];
       const nextIdx = (tabCycle.indexOf(activeTab) + 1) % tabCycle.length;
       switchTab(tabCycle[nextIdx]);
     });
@@ -576,16 +576,15 @@
 
   // ── Tab switching ──────────────────────────────────────────────────────────
 
-  // Lazy-init flags for the two new 3D canvases
+  // Lazy-init flag for the Code tab's 3D field viewer
   let _codeCanvas3DInited = false;
-  let _testCanvas3DInited = false;
 
   function switchTab(tab) {
     if (tab === activeTab) return;
     activeTab = tab;
     window._activeTab = tab;
 
-    ['build', 'code', 'test'].forEach(name => {
+    ['build', 'code'].forEach(name => {
       const el = document.getElementById('view-' + name);
       if (el) el.classList.toggle('active', name === tab);
     });
@@ -599,9 +598,9 @@
     const arrivedBtn = document.querySelector('.tab-btn[data-tab="' + tab + '"]');
     if (arrivedBtn) arrivedBtn.classList.remove('tut-highlight-nav');
 
-    // Show/hide nav code actions (visible on Code and Test tabs)
+    // Show/hide nav code actions (visible on Code tab)
     const codeActions = document.getElementById('nav-code-actions');
-    if (codeActions) codeActions.classList.toggle('visible', tab === 'code' || tab === 'test');
+    if (codeActions) codeActions.classList.toggle('visible', tab === 'code');
 
     if (tab === 'code') {
       if (!blocklyReady) initBlockly();
@@ -622,25 +621,9 @@
       }
     }
 
-    if (tab === 'test') {
-      // Lazy-init TestCanvas3D on first visit to Test tab
-      if (!_testCanvas3DInited && typeof TestCanvas3D !== 'undefined' && TestCanvas3D) {
-        const wrap = document.getElementById('test-canvas-3d-wrap');
-        if (wrap) {
-          _testCanvas3DInited = true; // set AFTER confirming container exists
-          TestCanvas3D.init(wrap);
-          TestCanvas3D.setRobotConfig(robotConfig);
-          _push3DFieldState(TestCanvas3D);
-        }
-      }
-    }
-
-    // Keep at most ONE 3D rAF loop active at a time
+    // Pause the Code-tab 3D rAF loop when the Code tab isn't visible
     if (typeof CodeCanvas3D !== 'undefined' && CodeCanvas3D) {
       CodeCanvas3D.setActive(tab === 'code');
-    }
-    if (typeof TestCanvas3D !== 'undefined' && TestCanvas3D) {
-      TestCanvas3D.setActive(tab === 'test');
     }
   }
 
@@ -661,16 +644,12 @@
     }
   }
 
-  // Push field config to all initialised 3D canvases (used by loadLessonSim
-  // and onRobotConfigChanged so the 3D views stay in sync even when hidden).
+  // Push field config to the Code-tab 3D canvas (used by loadLessonSim and
+  // onRobotConfigChanged so the 3D view stays in sync even when hidden).
   function _pushFieldToAll3D(obstacles, goalZone) {
     if (typeof CodeCanvas3D !== 'undefined' && CodeCanvas3D && _codeCanvas3DInited) {
       CodeCanvas3D.setObstacles(obstacles || []);
       CodeCanvas3D.setGoalZoneConfig(goalZone || null);
-    }
-    if (typeof TestCanvas3D !== 'undefined' && TestCanvas3D && _testCanvas3DInited) {
-      TestCanvas3D.setObstacles(obstacles || []);
-      TestCanvas3D.setGoalZoneConfig(goalZone || null);
     }
   }
 
@@ -1324,9 +1303,6 @@
     SimCanvas.setRobotConfig(robotConfig);
     if (typeof CodeCanvas3D !== 'undefined' && CodeCanvas3D && _codeCanvas3DInited) {
       CodeCanvas3D.setRobotConfig(robotConfig);
-    }
-    if (typeof TestCanvas3D !== 'undefined' && TestCanvas3D && _testCanvas3DInited) {
-      TestCanvas3D.setRobotConfig(robotConfig);
     }
 
     // Update sensor range

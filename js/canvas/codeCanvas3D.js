@@ -1,11 +1,6 @@
 // Code Canvas 3D — 3D field renderer for the right-side viewer slot in the
 // Code tab. Supports orbit (right-drag), zoom (wheel), and pan (middle-drag).
 //
-// This is the sibling of testCanvas3D.js. The two files share ~95% of their
-// implementation by design (option (a) from the spec). If a shared
-// core/three3DScene.js helper is extracted later, both files become thin
-// wrappers (requires index.html load-order changes — ui-refiner).
-//
 // Depends on: THREE (UMD global), SimEngine.
 
 const CodeCanvas3D = (() => {
@@ -40,7 +35,7 @@ const CodeCanvas3D = (() => {
   let _onVisibilityChange = null;
   let _onContextMenu      = null; // stored so destroy() can remove it
 
-  // Orbit + pan + zoom controls (matches TestCanvas3D — right-drag orbit, middle-drag pan, wheel zoom)
+  // Orbit + pan + zoom controls (right-drag orbit, middle-drag pan, wheel zoom)
   const _orbit = {
     active: false, lastX: 0, lastY: 0,
     theta: Math.PI / 4,
@@ -193,7 +188,7 @@ const CodeCanvas3D = (() => {
 
     rebuildBarriers();
 
-    // Orbit (right-drag) + zoom (wheel) — same feel as TestCanvas3D.
+    // Orbit (right-drag) + zoom (wheel).
     _onContextMenu = e => e.preventDefault();
     renderer.domElement.addEventListener('mousedown',  onMouseDown);
     renderer.domElement.addEventListener('contextmenu', _onContextMenu);

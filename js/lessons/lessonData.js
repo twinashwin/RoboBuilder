@@ -5,9 +5,8 @@
 //   { x, y, width, height, obstacleHeight? }
 // All values are in 2D sim pixels (arena is 1500×1500). The optional
 // `obstacleHeight` field is in 3D world units and is consumed only by the 3D
-// field renderers (testCanvas3D / codeCanvas3D). Omit it for the default
-// barrier-height look. Existing lessons without `obstacleHeight` are fully
-// backward-compatible.
+// field renderer (codeCanvas3D). Omit it for the default barrier-height look.
+// Existing lessons without `obstacleHeight` are fully backward-compatible.
 //
 // Coordinates rescaled from the original 440×360 arena by scale factor 3.4090909
 // (1500 / 440). Y dimension scaled by the same factor (original 360 → 1227 used,
