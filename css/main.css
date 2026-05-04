@@ -2125,8 +2125,9 @@ button:disabled { opacity: 0.35; cursor: not-allowed !important; }
    TUTORIAL — right-panel mode
 ═══════════════════════════════════════════════════════ */
 
-/* Navbar replay button */
-#btn-replay-tutorial {
+/* Navbar replay + projects buttons */
+#btn-replay-tutorial,
+#btn-projects {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -2142,7 +2143,8 @@ button:disabled { opacity: 0.35; cursor: not-allowed !important; }
   transition: background 0.15s, color 0.15s;
   white-space: nowrap;
 }
-#btn-replay-tutorial:hover {
+#btn-replay-tutorial:hover,
+#btn-projects:hover {
   background: var(--accent);
   color: #fff;
 }
@@ -3812,7 +3814,7 @@ button:disabled { opacity: 0.35; cursor: not-allowed !important; }
   /* Icon-only nav buttons — hide text labels */
   .nav-label { display: none; }
   /* Make nav buttons square icon buttons */
-  #btn-lessons, #btn-replay-tutorial, #btn-theme-toggle, #btn-login,
+  #btn-lessons, #btn-replay-tutorial, #btn-projects, #btn-theme-toggle, #btn-login,
   #btn-download, #btn-export, #btn-import,
   #btn-run, #btn-stop-sim, #btn-reset-sim {
     padding: 6px 8px;

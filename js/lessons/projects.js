@@ -326,7 +326,26 @@
     });
     // Also check on load if already on code tab
     setTimeout(checkCodeTab, 800);
+
+    // Navbar Projects button — switch to Code tab if needed, then open the panel.
+    var projectsBtn = document.getElementById('btn-projects');
+    if (projectsBtn) {
+      projectsBtn.addEventListener('click', function () {
+        var onCode = window._activeTab === 'code';
+        if (!onCode && typeof window._switchTab === 'function') {
+          window._switchTab('code');
+        }
+        // End any active tutorial so projects can take over.
+        var tutPanel = document.getElementById('tutorial-right');
+        if (tutPanel) tutPanel.setAttribute('hidden', '');
+        window._codeTutorialActive = false;
+        setTimeout(showProjectsPanel, onCode ? 0 : 300);
+      });
+    }
   });
+
+  // Exposed so the navbar Projects button (and any other caller) can open it.
+  window._showProjectsPanel = function () { showProjectsPanel(); };
 
   // ── Show/Hide ─────────────────────────────────────────────────────────────────
   function showProjectsPanel() {
