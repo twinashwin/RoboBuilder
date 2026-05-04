@@ -1115,7 +1115,7 @@ const BuildCanvas3D = (() => {
   }
 
   function onWindowMouseUp(e) {
-    if (e.button === 2) _orbit.active = false;
+    if (e.button === 2) { _orbit.active = false; _pan.active = false; }
     if (e.button === 1) _pan.active   = false;
     if (e.button === 0 && drag.active) {
       drag.active = false;
@@ -1127,6 +1127,13 @@ const BuildCanvas3D = (() => {
   }
 
   function onMouseDown(e) {
+    if (e.button === 2 && e.shiftKey) {
+      e.preventDefault();
+      _pan.active = true;
+      _pan.lastX  = e.clientX;
+      _pan.lastY  = e.clientY;
+      return;
+    }
     if (e.button === 2) {
       _orbit.active = true;
       _orbit.lastX  = e.clientX;

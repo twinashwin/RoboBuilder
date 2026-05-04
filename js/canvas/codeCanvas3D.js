@@ -284,7 +284,12 @@ const CodeCanvas3D = (() => {
   // ── Mouse / wheel (orbit + pan + zoom) ────────────────────────────────────
 
   function onMouseDown(e) {
-    if (e.button === 2) {
+    if (e.button === 2 && e.shiftKey) {
+      e.preventDefault();
+      _pan.active = true;
+      _pan.lastX  = e.clientX;
+      _pan.lastY  = e.clientY;
+    } else if (e.button === 2) {
       _orbit.active = true;
       _orbit.lastX  = e.clientX;
       _orbit.lastY  = e.clientY;
@@ -329,7 +334,7 @@ const CodeCanvas3D = (() => {
   }
 
   function onWindowMouseUp(e) {
-    if (e.button === 2) _orbit.active = false;
+    if (e.button === 2) { _orbit.active = false; _pan.active = false; }
     if (e.button === 1) _pan.active   = false;
   }
 
