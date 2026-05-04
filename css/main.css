@@ -2143,7 +2143,9 @@ button:disabled { opacity: 0.35; cursor: not-allowed !important; }
   white-space: nowrap;
 }
 #btn-replay-tutorial:hover,
-#btn-projects:hover {
+#btn-projects:hover,
+body:has(#tutorial-right:not([hidden])) #btn-replay-tutorial,
+body:has(#projects-right:not([hidden])) #btn-projects {
   background: var(--accent);
   color: #fff;
 }
