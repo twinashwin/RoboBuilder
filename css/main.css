@@ -48,7 +48,7 @@
   --toolbar-h:    44px;
   --sidebar-w:    220px;
   --right-w:      272px;
-  --code-left-w:  432px;  /* two 216px sub-panels side-by-side */
+  --code-left-w:  216px;
   --code-right-w: 720px;  /* wide right panel — field preview + tutorial + projects (1.5× from 480px) */
   --r-sm:   6px;
   --r-md:  10px;
