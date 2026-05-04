@@ -1304,6 +1304,11 @@
     if (typeof CodeCanvas3D !== 'undefined' && CodeCanvas3D && _codeCanvas3DInited) {
       CodeCanvas3D.setRobotConfig(robotConfig);
     }
+    // Tell SimEngine which parts the user has built so it can derive
+    // connected-component bodies at run-start.
+    if (SimEngine && typeof SimEngine.setBuildParts === 'function') {
+      SimEngine.setBuildParts(robotConfig.parts || []);
+    }
 
     // Update sensor range
     const sensorPart = robotConfig.parts.find(p => p.type === 'distance-sensor');
@@ -1385,6 +1390,8 @@
 
     // Position-based motor config: each motor gets offsetX (lateral offset
     // from motor-assembly center). Physics emerges from position × speed.
+    // forwardFactor encodes the motor's rotation: 1 = thrust forward,
+    // -1 = backward, 0 = sideways (motor rotated 90°).
     const fallbackNames = 'ABCDEFGH';
     const motorConfigs = motors.map((m, i) => {
       const def = typeof getPartDef === 'function' ? getPartDef(m.type) : null;
@@ -1394,10 +1401,13 @@
       const customName = m.props?.motorName?.trim();
       const name  = fallbackNames[i] || String(i);
       const label = customName || ('Motor ' + name);
+      const rot = m.rotation || 0;
       return {
         name,
         label,
         offsetX: motorCenterY - motorsCenterY,
+        forwardFactor: Math.cos(rot),
+        lateralFactor: Math.sin(rot),
         reversed: !!m.props?.reversed,
         wired: wiredMotorIds.has(m.id),
         partId: m.id
