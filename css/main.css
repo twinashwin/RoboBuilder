@@ -143,6 +143,13 @@ html, body {
 #view-code {
   zoom: 0.67;
 }
+/* When the Code tab is active, shrink the navbar's right cluster
+   (Projects → Tutorial → Theme → Sign In → autosave → Run/Stop/Reset)
+   to 67% so it visually matches the Code view's scale. The brand logo
+   and the Build/Code tab buttons stay at full size. */
+body:has(#view-code.active) #navbar .nav-right {
+  zoom: 0.67;
+}
 
 /* ── Focus styles (keyboard nav accessibility) ────────────── */
 :focus { outline: none; }

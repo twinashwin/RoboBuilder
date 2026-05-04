@@ -37,7 +37,8 @@ function buildCChannelSnaps(length, height) {
     { x: 0,      y: height / 2, type: 'male',   subtype: 'beam-end', connectsTo: ['beam-end'] },
     { x: length, y: height / 2, type: 'male',   subtype: 'beam-end', connectsTo: ['beam-end'] },
   ];
-  for (let x = 20; x <= length - 10; x += 20) {
+  // Hole spacing halved (10 px instead of 20 px) for finer mounting granularity.
+  for (let x = 10; x <= length - 5; x += 10) {
     pts.push({ x, y: 0,      type: 'female', subtype: 'hole', connectsTo: ['mount'] });
     pts.push({ x, y: height, type: 'female', subtype: 'hole', connectsTo: ['mount'] });
   }
