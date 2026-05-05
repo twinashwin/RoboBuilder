@@ -521,7 +521,7 @@ const CodeCanvas3D = (() => {
   // ── Part Mesh Factories (mirror of BuildCanvas3D, no snap indicators) ──────
 
   // Build a 3D C-channel sized in sim-pixels. Hole positions mirror
-  // snapSystem.buildCChannelSnaps (step 5, first hole x=5, last hole pw-25).
+  // snapSystem.buildCChannelSnaps (step 10, first hole x=5, last hole pw-5).
   function createCChannel(lengthPx) {
     const PX_TO_WORLD = 0.035;
     const lp = (typeof lengthPx === 'number' && isFinite(lengthPx)) ? lengthPx : 100;
