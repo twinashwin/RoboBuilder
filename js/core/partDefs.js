@@ -5,8 +5,8 @@
 const PARTS = [
   {
     type: 'c-channel',
-    label: 'C-Channel',
-    description: 'Structural beam',
+    label: 'Beam',
+    description: 'Structural rail',
     color: '#8a8a9a',
     width:  100,
     height: 24,
@@ -16,8 +16,8 @@ const PARTS = [
       { key: 'length', label: 'Length', type: 'range', min: 40, max: 240, step: 20, default: 100, unit: 'px' }
     ],
     metadata: {
-      name: 'C-Channel',
-      description: 'Rigid structural beam. Connect motors and wheels to it.',
+      name: 'Beam',
+      description: 'Rigid structural rail. Connect motors and wheels to it.',
     }
   },
   {

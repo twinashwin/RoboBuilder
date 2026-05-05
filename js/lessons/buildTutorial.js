@@ -44,11 +44,11 @@
       highlightType: null,
     },
 
-    // ── 1: Left Chassis Rail (long c-channel) ───────────────────────────────
+    // ── 1: Left Chassis Rail (long beam) ────────────────────────────────────
     {
       title: 'Step 1: Left Chassis Rail',
-      body:  '<p>Every robot needs a strong frame. We\'ll use four <strong>C-Channels</strong> — two long rails plus two short cross-beams — to form the chassis.</p>' +
-             '<p>Drag a <strong>C-Channel</strong> from the parts panel onto the blue outline. This is the <strong>left rail</strong>.</p>',
+      body:  '<p>Every robot needs a strong frame. We\'ll use four <strong>Beams</strong> — two long rails plus two short cross-beams — to form the chassis.</p>' +
+             '<p>Drag a <strong>Beam</strong> from the parts panel onto the blue outline. This is the <strong>left rail</strong>.</p>',
       partType: 'c-channel',
       targetOffset: { x: -50, y: -10 },
       target3D:    { x: 0, z: -1, rot: 0, props: { length: 100 } },
@@ -61,7 +61,7 @@
     // ── 2: Right Chassis Rail ───────────────────────────────────────────────
     {
       title: 'Step 2: Right Chassis Rail',
-      body:  '<p>Add a second <strong>C-Channel</strong> to form the <strong>right rail</strong>.</p>' +
+      body:  '<p>Add a second <strong>Beam</strong> to form the <strong>right rail</strong>.</p>' +
              '<p>Two parallel rails create a sturdy frame.</p>',
       partType: 'c-channel',
       targetOffset: { x: -50, y: 20 },
@@ -75,7 +75,7 @@
     // ── 3: Front Cross-Beam ─────────────────────────────────────────────────
     {
       title: 'Step 3: Front Cross-Beam',
-      body:  '<p>Now add a shorter <strong>C-Channel</strong> as a cross-beam at the <strong>front</strong> of the chassis.</p>' +
+      body:  '<p>Now add a shorter <strong>Beam</strong> as a cross-beam at the <strong>front</strong> of the chassis.</p>' +
              '<p>Cross-beams tie the rails together and give you mounting points for parts.</p>',
       partType: 'c-channel',
       targetOffset: { x: -85, y: 5 },
@@ -89,7 +89,7 @@
     // ── 4: Back Cross-Beam ──────────────────────────────────────────────────
     {
       title: 'Step 4: Back Cross-Beam',
-      body:  '<p>Add a second short <strong>C-Channel</strong> at the <strong>back</strong> of the chassis.</p>' +
+      body:  '<p>Add a second short <strong>Beam</strong> at the <strong>back</strong> of the chassis.</p>' +
              '<p>The frame is now a closed rectangle — strong and ready to carry the drive train.</p>',
       partType: 'c-channel',
       targetOffset: { x: 25, y: 5 },
