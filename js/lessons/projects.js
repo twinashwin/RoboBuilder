@@ -335,10 +335,16 @@
         if (!onCode && typeof window._switchTab === 'function') {
           window._switchTab('code');
         }
-        // End any active tutorial so projects can take over.
-        var tutPanel = document.getElementById('tutorial-right');
-        if (tutPanel) tutPanel.setAttribute('hidden', '');
-        window._codeTutorialActive = false;
+        // Fully tear down any active tutorial — clears the pulsing block
+        // highlight (e.g. spin_motor) and detaches its listeners. Falls back
+        // to a plain panel-hide if the helper isn't available yet.
+        if (typeof window._endCodeTutorial === 'function') {
+          window._endCodeTutorial();
+        } else {
+          var tutPanel = document.getElementById('tutorial-right');
+          if (tutPanel) tutPanel.setAttribute('hidden', '');
+          window._codeTutorialActive = false;
+        }
         setTimeout(showProjectsPanel, onCode ? 0 : 300);
       });
     }

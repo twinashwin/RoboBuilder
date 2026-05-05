@@ -272,8 +272,15 @@
     _active = false;
     window._codeTutorialActive = false;
     if (tutPanel) tutPanel.setAttribute('hidden', '');
+    stopBlocklyListener();
+    stopWatchingRun();
     clearHighlight();
   }
+
+  // Exposed so other panels (e.g. projects.js when the user clicks the
+  // navbar Projects button mid-tutorial) can fully tear down the tutorial
+  // — not just hide the panel — which clears the pulsing block highlight.
+  window._endCodeTutorial = endTutorial;
 
   // ── Core Navigation ──────────────────────────────────────────────────────────
   function goToStep(idx) {
