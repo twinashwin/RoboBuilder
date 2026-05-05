@@ -69,8 +69,8 @@ const SimEngine = (() => {
   // ── Build-time inputs ─────────────────────────────────────────────────────
   // Latest snapshot of what the user built. Bodies are derived from this.
   let _placedParts = [];
-  let _motorConfig = null;   // { motors: [{ name, label, partId, offsetX, reversed, wired, ... }] }
-  let _motors      = {};     // name -> { speed, reversed, wired, partId, ... }
+  let _motorConfig = null;   // { motors: [{ name, label, partId, reversed, wired, forwardFactor, lateralFactor, ... }] }
+  let _motors      = {};     // name -> { speed, reversed, wired, partId, _bodyLocalLateral, _bodyLocalLongitudinal, ... }
 
   // ── Bodies ────────────────────────────────────────────────────────────────
   // A body owns its pose, velocity, parts list (with body-local offsets), and
@@ -186,10 +186,10 @@ const SimEngine = (() => {
       const bodyParts = partCenters.map(({ p, cx, cy }) => ({
         id: p.id,
         type: p.type,
-        // Local offset from body COM, in build-frame.
-        // Build-frame y axis maps to body-local "left/right" because the
-        // build canvas is rendered rotated -90° in the sim (matches
-        // _updateMotorConfig's offsetX = motor Y in build canvas).
+        // Local offset from body COM, in build-frame. Build-frame y axis
+        // maps to body-local "left/right" because the build canvas is
+        // rendered rotated -90° in the sim — so localY is the lateral lever
+        // arm consumed by the motor torque calculation in `tick()`.
         localX: cx - comX,
         localY: cy - comY,
         rotation: p.rotation || 0,
@@ -232,47 +232,6 @@ const SimEngine = (() => {
       });
     }
 
-    // Map motors to bodies (motor config carries partId). For each motor we
-    // recompute its body-local lever arm using the body's COM (the build-time
-    // offsetX in _motorConfig is relative to the motor-assembly centroid,
-    // which only matches the body COM for single-body builds — for multi-body
-    // it would be wrong).
-    if (_motorConfig && _motorConfig.motors) {
-      for (const m of _motorConfig.motors) {
-        for (const b of newBodies) {
-          if (!b.partIds.has(m.partId)) continue;
-          b.motorNames.push(m.name);
-          // Find the part record so we can read its build-canvas position
-          const partRec = groupsForBody(b).find(pr => pr.p.id === m.partId);
-          if (partRec && _motors[m.name]) {
-            // Body-local lateral offset (along body's lateral axis = build Y).
-            // localX corresponds to build-frame x (motor's "front-back" along
-            // the chassis axis); localY corresponds to build-frame y (the
-            // lateral axis the legacy motor-config used).
-            _motors[m.name]._bodyLocalLateral = partRec.cy - b.y;
-            // localY along chassis axis (forward/backward placement) — kept
-            // for completeness but unused in current force model.
-            _motors[m.name]._bodyLocalLongitudinal = partRec.cx - b.x;
-          }
-          break;
-        }
-      }
-    }
-    function groupsForBody(body) {
-      // Reconstructs the partCenters array for a single body from groupParts.
-      // Cheap because bodies usually have few parts.
-      const result = [];
-      for (let i = 0; i < n; i++) {
-        const p = placedParts[i];
-        if (!body.partIds.has(p.id)) continue;
-        const def = (typeof getPartDef === 'function') ? getPartDef(p.type) : null;
-        const pw = def ? getEffectiveW(p, def) : 32;
-        const ph = def ? getEffectiveH(p, def) : 22;
-        result.push({ p, cx: p.position.x + pw / 2, cy: p.position.y + ph / 2 });
-      }
-      return result;
-    }
-
     // Pick primary body: most wheels, then largest part count.
     let bestIdx = 0, bestScore = -Infinity;
     for (let i = 0; i < newBodies.length; i++) {
@@ -282,6 +241,44 @@ const SimEngine = (() => {
     }
     bodies = newBodies;
     primaryBodyIdx = bestIdx;
+
+    // Map motors → bodies and compute each motor's body-local lever arm.
+    // Lever arms must be derived per-body (relative to that body's COM), not
+    // relative to a global motor-assembly centroid — multi-body builds would
+    // otherwise use a meaningless reference point.
+    _assignMotorLeverArms();
+  }
+
+  // Maps each motor in `_motorConfig` onto whichever body owns it (matched by
+  // partId), pushes its name into that body's `motorNames`, and sets the
+  // motor's body-local lever-arm fields (`_bodyLocalLateral` / `_bodyLocalLongitudinal`)
+  // from the motor's actual position relative to that body's COM. Called from
+  // `_buildBodies` AND from `setMotorConfig` (which rebuilds `_motors` from
+  // scratch and would otherwise lose the lever-arm info, causing motors to
+  // fall back to 0 and bodies to spin uncontrollably on subsequent runs).
+  function _assignMotorLeverArms() {
+    if (!bodies || bodies.length === 0 || bodies[0].isDefault) return;
+    if (!_motorConfig || !_motorConfig.motors) return;
+
+    // Reset motorNames before re-mapping so repeated calls don't duplicate.
+    for (const b of bodies) { b.motorNames = []; }
+
+    for (const m of _motorConfig.motors) {
+      for (const b of bodies) {
+        if (!b.partIds || !b.partIds.has(m.partId)) continue;
+        b.motorNames.push(m.name);
+        // Find this motor's part record on the body to read its build-frame
+        // center. Body-local part records carry localX/localY (offsets from
+        // COM in the build frame). The build canvas is rendered rotated -90°
+        // in the sim, so the body's lateral axis aligns with build-frame y.
+        const bp = b.parts.find(pr => pr.id === m.partId);
+        if (bp && _motors[m.name]) {
+          _motors[m.name]._bodyLocalLongitudinal = bp.localX;
+          _motors[m.name]._bodyLocalLateral      = bp.localY;
+        }
+        break;
+      }
+    }
   }
 
   // ── Trail helpers (primary body for legacy callers) ───────────────────────
@@ -305,22 +302,20 @@ const SimEngine = (() => {
           wired: !!m.wired,
           forwardFactor: m.forwardFactor ?? 1,
           lateralFactor: m.lateralFactor ?? 0,
-          offsetX: m.offsetX ?? 0,
           partId: m.partId
+          // _bodyLocalLateral / _bodyLocalLongitudinal are filled in by
+          // _assignMotorLeverArms() below — they are the per-body source of
+          // truth for the motor's lever arm.
         };
       });
     }
-    // Rebuild body→motor mapping if bodies already exist
-    if (bodies && bodies.length && !bodies[0].isDefault) {
-      bodies.forEach(b => { b.motorNames = []; });
-      if (config && config.motors) {
-        for (const m of config.motors) {
-          for (const b of bodies) {
-            if (b.partIds && b.partIds.has(m.partId)) { b.motorNames.push(m.name); break; }
-          }
-        }
-      }
-    }
+    // Rebuild body→motor mapping AND recompute each motor's body-local lever
+    // arms. Without this, edits to motor props after the first run would
+    // wipe the lever-arm values (we just rebuilt _motors from scratch) and
+    // physics would silently fall back to zero — a multi-body build's
+    // off-COM motors would then spin their body uncontrollably on the
+    // second run.
+    _assignMotorLeverArms();
   }
   function getMotorConfig() { return _motorConfig; }
 
@@ -484,12 +479,15 @@ const SimEngine = (() => {
           //   y_local = build-frame y = chassis lateral axis
           // The build canvas is rendered rotated -90° in the sim, so the
           // body's lateral axis (where motors sit) aligns with build Y.
-          // _bodyLocalLateral / _bodyLocalLongitudinal are computed at body
-          // construction time from each motor's actual position relative to
-          // the body COM (correct for multi-body). Falls back to the legacy
-          // motor-config offsetX when the per-body value isn't present.
+          // `_bodyLocalLateral` / `_bodyLocalLongitudinal` are the sole
+          // source of truth, set by `_assignMotorLeverArms()` from the
+          // motor's actual position relative to its body's COM. They are
+          // re-set every time `_buildBodies` or `setMotorConfig` runs, so
+          // the only way 0 is read here is if a motor lives on no body
+          // (e.g. between rebuilds), in which case zero force/torque is
+          // the safe default.
           const rxLocal = (typeof m._bodyLocalLongitudinal === 'number') ? m._bodyLocalLongitudinal : 0;
-          const ryLocal = (typeof m._bodyLocalLateral === 'number')      ? m._bodyLocalLateral      : (m.offsetX || 0);
+          const ryLocal = (typeof m._bodyLocalLateral === 'number')      ? m._bodyLocalLateral      : 0;
           // Rotate force + lever arm into world frame
           const wfx = cosA * lfx - sinA * lfy;
           const wfy = sinA * lfx + cosA * lfy;

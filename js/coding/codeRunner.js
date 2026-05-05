@@ -12,8 +12,8 @@ const CodeRunner = (() => {
 
   // ── Motor class ───────────────────────────────────────────────────────────
   // Represents a single physical motor on the robot. Spinning a motor propels
-  // the robot based on the motor's position (offsetX) and orientation
-  // (forwardFactor) — movement is entirely physics-driven.
+  // the robot based on the motor's body-local lever arm and orientation
+  // (forwardFactor / lateralFactor) — movement is entirely physics-driven.
 
   class Motor {
     constructor(name, signal, sleep, stats) {

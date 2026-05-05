@@ -1255,15 +1255,12 @@
       return;
     }
 
-    // offsetX must use canvas Y, not X.
-    // The sim renders the build canvas at -90°, so canvas Y = left-right in sim.
-    let motorsCenterY = 0;
-    motors.forEach(m => {
-      const def = typeof getPartDef === 'function' ? getPartDef(m.type) : null;
-      const ph = def ? def.height : 40;
-      motorsCenterY += m.position.y + ph / 2;
-    });
-    motorsCenterY /= motors.length;
+    // Lever arms are computed by SimEngine per-body in `_assignMotorLeverArms`
+    // (relative to each body's COM, which is the correct reference for
+    // multi-body builds). This file just supplies identity, wiring, and
+    // orientation; it does NOT precompute any lateral offset because doing so
+    // here would average across all motors regardless of which body they
+    // belong to — meaningless when a build has more than one drivetrain.
 
     // Check which motors are wired to brain
     const brainPart = parts.find(p => p.type === 'brain');
@@ -1279,16 +1276,12 @@
       });
     }
 
-    // Position-based motor config: each motor gets offsetX (lateral offset
-    // from motor-assembly center). Physics emerges from position × speed.
-    // forwardFactor encodes the motor's rotation: 1 = thrust forward,
-    // -1 = backward, 0 = sideways (motor rotated 90°).
+    // Position-based motor config. forwardFactor / lateralFactor encode the
+    // motor's rotation in the build frame so off-axis motors thrust at the
+    // correct angle. The motor's body-local lever arm is computed inside
+    // SimEngine (see `_assignMotorLeverArms`) — not here.
     const fallbackNames = 'ABCDEFGH';
     const motorConfigs = motors.map((m, i) => {
-      const def = typeof getPartDef === 'function' ? getPartDef(m.type) : null;
-      const ph = def ? def.height : 40;
-      const motorCenterY = m.position.y + ph / 2;
-
       const customName = m.props?.motorName?.trim();
       const name  = fallbackNames[i] || String(i);
       const label = customName || ('Motor ' + name);
@@ -1296,7 +1289,6 @@
       return {
         name,
         label,
-        offsetX: motorCenterY - motorsCenterY,
         forwardFactor: Math.cos(rot),
         lateralFactor: Math.sin(rot),
         reversed: !!m.props?.reversed,
