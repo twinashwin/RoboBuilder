@@ -37,17 +37,16 @@ function buildCChannelSnaps(length, height) {
     { x: 0,      y: height / 2, type: 'male',   subtype: 'beam-end', connectsTo: ['beam-end'] },
     { x: length, y: height / 2, type: 'male',   subtype: 'beam-end', connectsTo: ['beam-end'] },
   ];
-  // Hole spacing: 10 px for fine mounting granularity. The last hole must be
-  // far enough from the beam-end snap point at x=length that `_partsConnected`
+  // Hole spacing: 5 px for very fine mounting granularity. The last hole must
+  // be far enough from the beam-end snap point at x=length that `_partsConnected`
   // (in simEngine) can't false-merge two channels joined end-to-end — the
   // hole→beam-end distance has to exceed SNAP_THRESHOLD (=22 px). With step
-  // 10, bound `length - 25` keeps every generated hole at least 25 px from
-  // the beam-end. Short channels (length < 35) skip holes entirely; that's
-  // intentional — a 30-px stub doesn't need mounting holes.
-  const FIRST_HOLE_X = 10;
+  // 5, bound `length - 25` keeps every generated hole at least 25 px from
+  // the beam-end. Short channels (length < 30) skip holes entirely.
+  const FIRST_HOLE_X = 5;
   const LAST_HOLE_BOUND = length - 25;
   if (LAST_HOLE_BOUND >= FIRST_HOLE_X) {
-    for (let x = FIRST_HOLE_X; x <= LAST_HOLE_BOUND; x += 10) {
+    for (let x = FIRST_HOLE_X; x <= LAST_HOLE_BOUND; x += 5) {
       pts.push({ x, y: 0,      type: 'female', subtype: 'hole', connectsTo: ['mount'] });
       pts.push({ x, y: height, type: 'female', subtype: 'hole', connectsTo: ['mount'] });
     }
