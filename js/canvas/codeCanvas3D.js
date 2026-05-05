@@ -538,7 +538,7 @@ const CodeCanvas3D = (() => {
     rightWall.position.set(0, 0.25, 0.45);
     rightWall.castShadow = true;
     group.add(rightWall);
-    for (let hxPx = 5; hxPx <= lp - 25; hxPx += 5) {
+    for (let hxPx = 5; hxPx <= lp - 5; hxPx += 10) {
       const hx = (hxPx * PX_TO_WORLD) - length / 2;
       const hole = new THREE.Mesh(
         new THREE.CylinderGeometry(0.04, 0.04, 0.12, 8),

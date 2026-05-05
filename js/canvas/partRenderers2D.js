@@ -41,10 +41,9 @@ const PartRenderers2D = (() => {
     c.fillStyle = g;
     c.fillRect(pw - webW, flange, webW, ph - flange * 2);
     // Hole positions must match snapSystem.buildCChannelSnaps exactly:
-    //   first hole at x=5, step 5, last hole at most pw-25 (so the hole is
-    //   ≥ SNAP_THRESHOLD away from the beam-end snap point at x=pw).
+    //   first hole at x=5, step 10, last hole at most pw-5.
     c.fillStyle = 'rgba(5,5,20,0.75)';
-    for (let hx = 5; hx <= pw - 25; hx += 5) {
+    for (let hx = 5; hx <= pw - 5; hx += 10) {
       c.beginPath(); c.ellipse(hx, flange * 0.5, 1.6, 1.0, 0, 0, Math.PI * 2); c.fill();
       c.beginPath(); c.ellipse(hx, ph - flange * 0.5, 1.6, 1.0, 0, 0, Math.PI * 2); c.fill();
     }

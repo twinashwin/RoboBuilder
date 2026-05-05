@@ -474,9 +474,9 @@ const BuildCanvas3D = (() => {
     rightWall.castShadow = true;
     group.add(rightWall);
 
-    // Hole positions in sim-px = 5, 10, ..., lp - 25 (mirrors snapSystem.buildCChannelSnaps).
+    // Hole positions in sim-px = 5, 15, ..., lp - 5 (mirrors snapSystem.buildCChannelSnaps).
     // Convert to world-units, then offset so x=0 is the channel's center.
-    for (let hxPx = 5; hxPx <= lp - 25; hxPx += 5) {
+    for (let hxPx = 5; hxPx <= lp - 5; hxPx += 10) {
       const hx = (hxPx * PX_TO_WORLD) - length / 2;
       const hole = new THREE.Mesh(
         new THREE.CylinderGeometry(0.04, 0.04, 0.12, 8),

@@ -964,10 +964,10 @@ const BuildCanvas = (() => {
     c.fillRect(webW, flange, pw - webW * 2, ph - flange * 2);
     c.fillStyle = g;
     c.fillRect(pw - webW, flange, webW, ph - flange * 2);
-    // Hole positions must match snapSystem.buildCChannelSnaps (step 5,
-    // first hole x=5, last hole pw-25).
+    // Hole positions must match snapSystem.buildCChannelSnaps (step 10,
+    // first hole x=5, last hole pw-5).
     c.fillStyle = 'rgba(5,5,20,0.75)';
-    for (let hx = 5; hx <= pw - 25; hx += 5) {
+    for (let hx = 5; hx <= pw - 5; hx += 10) {
       c.beginPath(); c.ellipse(hx, flange * 0.5, 1.6, 1.0, 0, 0, Math.PI * 2); c.fill();
       c.beginPath(); c.ellipse(hx, ph - flange * 0.5, 1.6, 1.0, 0, 0, Math.PI * 2); c.fill();
     }
