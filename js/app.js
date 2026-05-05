@@ -549,23 +549,47 @@
     const ry = sp ? sp.y * sy : h / 2;
     const ra = sp ? ((sp.angleDeg || 0) * Math.PI / 180) : -Math.PI / 2;
 
+    // Render the actual built robot assembly when parts exist; fall back to a
+    // generic body otherwise. Sized to ~55% of the thumb's shorter side so the
+    // robot reads at a glance and its orientation is obvious.
+    const robotMaxPx = Math.min(w, h) * 0.55;
+    const parts = (robotConfig && robotConfig.parts) || [];
+    const drewAssembly = parts.length > 0 &&
+      typeof PartRenderers2D !== 'undefined' &&
+      PartRenderers2D.drawAssemblyToContext(ctx, parts, rx, ry, ra, robotMaxPx);
+
+    if (!drewAssembly) {
+      ctx.save();
+      ctx.translate(rx, ry);
+      ctx.rotate(ra);
+      ctx.fillStyle = '#3B82F6';
+      const bw = robotMaxPx, bh = robotMaxPx * (75 / 109);
+      if (ctx.roundRect) {
+        ctx.beginPath(); ctx.roundRect(-bw/2, -bh/2, bw, bh, 4); ctx.fill();
+      } else {
+        ctx.fillRect(-bw/2, -bh/2, bw, bh);
+      }
+      ctx.restore();
+    }
+
+    // Orientation arrow — drawn on top of either the assembly or the fallback
+    // box so the robot's facing direction is unambiguous.
     ctx.save();
     ctx.translate(rx, ry);
     ctx.rotate(ra);
-    ctx.fillStyle = '#3B82F6';
-    const bw = 16 * sx, bh = 11 * sy;
-    if (ctx.roundRect) {
-      ctx.beginPath(); ctx.roundRect(-bw/2, -bh/2, bw, bh, 2); ctx.fill();
-    } else {
-      ctx.fillRect(-bw/2, -bh/2, bw, bh);
-    }
-    // Arrow
-    ctx.fillStyle = '#fff';
+    const ah = robotMaxPx * 0.18;
+    const aLen = robotMaxPx * 0.32;
+    const aTip = robotMaxPx * 0.58;
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.strokeStyle = 'rgba(15,23,42,0.55)';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(bw/2 + 3*sx, 0);
-    ctx.lineTo(bw/2 - 1*sx, -3*sy);
-    ctx.lineTo(bw/2 - 1*sx,  3*sy);
-    ctx.closePath(); ctx.fill();
+    ctx.moveTo(aTip, 0);
+    ctx.lineTo(aTip - aLen,  ah);
+    ctx.lineTo(aTip - aLen, -ah);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
     ctx.restore();
 
     // Border
