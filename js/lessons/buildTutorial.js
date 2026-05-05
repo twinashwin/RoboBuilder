@@ -340,10 +340,6 @@
     _BC.resetCanvas();
     btPanel.removeAttribute('hidden');
 
-    // Hide properties panel during tutorial
-    var propsPanel = document.getElementById('props-panel');
-    if (propsPanel) propsPanel.setAttribute('hidden', '');
-
     currentStep = 0;
     // Notify listeners (parts-panel lock state, etc.) BEFORE goToStep, so the
     // first step's step-change event finds the tutorial flagged active.
@@ -583,9 +579,6 @@
 
     btPanel.setAttribute('hidden', '');
 
-    var propsPanel = document.getElementById('props-panel');
-    if (propsPanel) propsPanel.removeAttribute('hidden');
-
     if (_BC.redraw) _BC.redraw();
 
     // Re-lock the parts panel for non-logged-in users. (Skipping does NOT mark
@@ -604,9 +597,6 @@
     isActive = false;
 
     localStorage.setItem(STORAGE_KEY, 'done');
-
-    var propsPanel = document.getElementById('props-panel');
-    if (propsPanel) propsPanel.removeAttribute('hidden');
 
     if (_BC.setActiveTool) _BC.setActiveTool('select');
     if (_BC.redraw) _BC.redraw();
