@@ -2124,6 +2124,9 @@ button:disabled { opacity: 0.35; cursor: not-allowed !important; }
    TUTORIAL — right-panel mode
 ═══════════════════════════════════════════════════════ */
 
+/* Projects button is Code-tab-only — hide on Build tab */
+body:has(#view-build.active) #btn-projects { display: none; }
+
 /* Navbar replay + projects buttons */
 #btn-replay-tutorial,
 #btn-projects {
