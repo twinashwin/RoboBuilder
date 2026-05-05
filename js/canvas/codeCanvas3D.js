@@ -230,43 +230,10 @@ const CodeCanvas3D = (() => {
     }
 
     if (robotRoot && typeof SimEngine !== 'undefined') {
-      // Multi-body sync: each child group of robotRoot corresponds to one
-      // body, addressable by group.userData.bodyId. Disconnected drivetrains
-      // get independent poses; the legacy single-body case still works
-      // because SimEngine returns one synthetic "default" body.
-      const bodies = (typeof SimEngine.getBodies === 'function') ? SimEngine.getBodies() : null;
-      if (bodies && bodies.length > 0) {
-        const byId = new Map();
-        bodies.forEach(b => byId.set(b.id, b));
-        let appliedAny = false;
-        robotRoot.children.forEach(group => {
-          const bid = group.userData && group.userData.bodyId;
-          const b = bid ? byId.get(bid) : null;
-          if (b) {
-            group.position.x = simToWorldX(b.x);
-            group.position.z = simToWorldZ(b.y);
-            group.rotation.y = -b.angle;
-            appliedAny = true;
-          }
-        });
-        // Fallback: if no group matched (e.g. pre-rebuildRobot frame), apply
-        // the primary body's pose to robotRoot itself.
-        if (!appliedAny) {
-          const r = SimEngine.getRobot();
-          robotRoot.position.x = simToWorldX(r.x);
-          robotRoot.position.z = simToWorldZ(r.y);
-          robotRoot.rotation.y = -r.angle;
-        } else {
-          // Reset robotRoot transform — children handle their own placement.
-          robotRoot.position.set(0, 0, 0);
-          robotRoot.rotation.y = 0;
-        }
-      } else {
-        const r = SimEngine.getRobot();
-        robotRoot.position.x = simToWorldX(r.x);
-        robotRoot.position.z = simToWorldZ(r.y);
-        robotRoot.rotation.y = -r.angle;
-      }
+      const r = SimEngine.getRobot();
+      robotRoot.position.x = simToWorldX(r.x);
+      robotRoot.position.z = simToWorldZ(r.y);
+      robotRoot.rotation.y = -r.angle;
     }
 
     if (goalRing && goalPad) {
@@ -505,82 +472,30 @@ const CodeCanvas3D = (() => {
       return;
     }
 
-    // Group parts by connectivity (same logic as SimEngine._buildBodies) so
-    // each disconnected drivetrain becomes its own sub-Group with an
-    // addressable bodyId — animate() then drives each independently.
-    const partGroups = _connectedComponents(robotConfig.parts);
-
-    partGroups.forEach((group, gi) => {
-      // Centroid in build coords (matches SimEngine COM choice)
-      let sumX = 0, sumY = 0;
-      const partInfo = group.map(p => {
-        const def = (typeof getPartDef === 'function') ? getPartDef(p.type) : null;
-        const pw = def ? getEffectiveW(p, def) : 32;
-        const ph = def ? getEffectiveH(p, def) : 22;
-        const cxSim = p.position.x + pw / 2;
-        const cySim = p.position.y + ph / 2;
-        sumX += cxSim; sumY += cySim;
-        return { p, cxSim, cySim };
-      });
-      const comX = sumX / group.length;
-      const comY = sumY / group.length;
-
-      const bodyGroup = new THREE.Group();
-      // bodyId must match the SimEngine body id ('body-' + part-indices) or
-      // 'default' for the synthetic single-body fallback.
-      bodyGroup.userData.bodyId = _bodyIdForGroup(robotConfig.parts, group);
-
-      partInfo.forEach(({ p, cxSim, cySim }) => {
-        const lx = ((cxSim - comX) / SCALE) * RENDER_SCALE;
-        const lz = ((cySim - comY) / SCALE) * RENDER_SCALE;
-        const mesh = createPartMesh(p.type, p.props || {});
-        mesh.scale.set(RENDER_SCALE, 1, RENDER_SCALE);
-        mesh.position.set(lx, 0, lz);
-        mesh.rotation.y = (p.rotation || 0);
-        bodyGroup.add(mesh);
-      });
-      robotRoot.add(bodyGroup);
+    // Centroid in build coords (so the robot pivots about its center, matching
+    // the 2D sim canvas).
+    let sumX = 0, sumY = 0;
+    const partInfo = robotConfig.parts.map(p => {
+      const def = (typeof getPartDef === 'function') ? getPartDef(p.type) : null;
+      const pw = def ? getEffectiveW(p, def) : 32;
+      const ph = def ? getEffectiveH(p, def) : 22;
+      const cxSim = p.position.x + pw / 2;
+      const cySim = p.position.y + ph / 2;
+      sumX += cxSim; sumY += cySim;
+      return { p, cxSim, cySim };
     });
-  }
+    const comX = sumX / robotConfig.parts.length;
+    const comY = sumY / robotConfig.parts.length;
 
-  // Compute the same body id SimEngine uses ('body-' + sorted-original-indices).
-  function _bodyIdForGroup(allParts, group) {
-    const indices = group.map(p => allParts.indexOf(p)).filter(i => i >= 0).sort((a, b) => a - b);
-    return 'body-' + indices.join('-');
-  }
-
-  // Lightweight union-find over snap-point coincidence — must match
-  // SimEngine._buildBodies's connectivity rule so body ids align.
-  function _connectedComponents(parts) {
-    if (typeof getWorldSnapPoints !== 'function' || typeof SNAP_THRESHOLD === 'undefined') {
-      return [parts];
-    }
-    const n = parts.length;
-    const parent = new Array(n);
-    for (let i = 0; i < n; i++) parent[i] = i;
-    const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
-    const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; };
-    const sps = parts.map(p => getWorldSnapPoints(p));
-    const T2  = SNAP_THRESHOLD * SNAP_THRESHOLD;
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        let connected = false;
-        outer: for (const sa of sps[i]) {
-          for (const sb of sps[j]) {
-            const dx = sa.x - sb.x, dy = sa.y - sb.y;
-            if (dx * dx + dy * dy < T2) { connected = true; break outer; }
-          }
-        }
-        if (connected) union(i, j);
-      }
-    }
-    const groups = new Map();
-    for (let i = 0; i < n; i++) {
-      const r = find(i);
-      if (!groups.has(r)) groups.set(r, []);
-      groups.get(r).push(parts[i]);
-    }
-    return Array.from(groups.values());
+    partInfo.forEach(({ p, cxSim, cySim }) => {
+      const lx = ((cxSim - comX) / SCALE) * RENDER_SCALE;
+      const lz = ((cySim - comY) / SCALE) * RENDER_SCALE;
+      const mesh = createPartMesh(p.type, p.props || {});
+      mesh.scale.set(RENDER_SCALE, 1, RENDER_SCALE);
+      mesh.position.set(lx, 0, lz);
+      mesh.rotation.y = (p.rotation || 0);
+      robotRoot.add(mesh);
+    });
   }
 
   function addGenericRobot(parent) {
@@ -605,8 +520,12 @@ const CodeCanvas3D = (() => {
 
   // ── Part Mesh Factories (mirror of BuildCanvas3D, no snap indicators) ──────
 
-  function createCChannel(lengthUnits) {
-    const length = (lengthUnits || 5) * 0.7;
+  // Build a 3D C-channel sized in sim-pixels. Hole positions mirror
+  // snapSystem.buildCChannelSnaps (step 5, first hole x=5, last hole pw-25).
+  function createCChannel(lengthPx) {
+    const PX_TO_WORLD = 0.035;
+    const lp = (typeof lengthPx === 'number' && isFinite(lengthPx)) ? lengthPx : 100;
+    const length = Math.max(0.5, lp * PX_TO_WORLD);
     const group = new THREE.Group();
     const bottom = new THREE.Mesh(new THREE.BoxGeometry(length, 0.1, 1), M.metal.clone());
     bottom.castShadow = true;
@@ -619,11 +538,10 @@ const CodeCanvas3D = (() => {
     rightWall.position.set(0, 0.25, 0.45);
     rightWall.castShadow = true;
     group.add(rightWall);
-    const holeCount = Math.max(1, Math.floor(length / 0.7));
-    for (let i = 0; i < holeCount; i++) {
-      const hx = -length / 2 + 0.35 + i * 0.7;
+    for (let hxPx = 5; hxPx <= lp - 25; hxPx += 5) {
+      const hx = (hxPx * PX_TO_WORLD) - length / 2;
       const hole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.08, 0.08, 0.12, 8),
+        new THREE.CylinderGeometry(0.04, 0.04, 0.12, 8),
         M.hole.clone()
       );
       hole.position.set(hx, 0.06, 0);
@@ -721,8 +639,7 @@ const CodeCanvas3D = (() => {
     switch (partType) {
       case 'c-channel': {
         const lengthPx = (props && props.length) || 100;
-        const holeCount = Math.max(2, Math.round(lengthPx / 20));
-        return createCChannel(holeCount);
+        return createCChannel(lengthPx);
       }
       case 'motor':           return createMotor();
       case 'wheel':           return createWheel();

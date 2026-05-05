@@ -11,9 +11,9 @@ const CodeRunner = (() => {
   let _stepResolve = null;
 
   // ── Motor class ───────────────────────────────────────────────────────────
-  // Represents a single physical motor on the robot. Spinning a motor propels
-  // the robot based on the motor's body-local lever arm and orientation
-  // (forwardFactor / lateralFactor) — movement is entirely physics-driven.
+  // Represents a single physical motor on the robot. Spinning a motor sets its
+  // speed in SimEngine, which mixes per-motor speeds into chassis-level
+  // velocity and turn rate based on each motor's lateral offset.
 
   class Motor {
     constructor(name, signal, sleep, stats) {
@@ -32,8 +32,6 @@ const CodeRunner = (() => {
     }
 
     // Spin continuously. Fire-and-forget — sets motor speed and returns instantly.
-    // The robot's resulting movement depends on where the motor is placed and
-    // how it is oriented — the physics engine handles everything.
     // Never throws; abort is handled at the next await checkpoint elsewhere.
     spin(speed) {
       const s = speed !== undefined

@@ -1,62 +1,81 @@
-// Simulation Engine – multi-body 2D rigid-body physics.
+// Simulation Engine – single-body 2D tank-drive sim.
 //
-// At run-start the engine builds a connectivity graph from placedParts using
-// snap-point coincidence (same threshold as snapSystem). Each connected
-// component becomes its own body with its own pose, velocity, and trail.
-// Motors thrust their body only if that body's part graph contains a wheel;
-// off-center motors produce torque, so unbalanced drives curve.
+// State:
+//   robot = { x, y, angle, velocity, turnRate, width, height }
 //
-// Backwards-compatible legacy API is preserved:
-//   • getRobot()/getState() return the primary body's pose (the body with the
-//     most wheels, or the first encountered). External callers that already
-//     read x/y/angle/width/height keep working without changes.
-//   • setVelocity/setTurnRate act on the primary body, synthesizing force +
-//     torque so existing lessons that don't use the per-motor API still drive.
-//   • setMotorSpeed routes to whichever body owns that motor.
+// Each tick:
+//   - angle  += turnRate
+//   - x      += cos(angle) * velocity
+//   - y      += sin(angle) * velocity
+//   - clamp to arena bounds; AABB-collide with obstacles (block move)
+//
+// Two control entry points:
+//   1. Legacy direct: setVelocity(v) / setTurnRate(r) — used by classic blocks
+//      that drive the chassis as a whole.
+//   2. Per-motor tank drive: setMotorSpeed(name, speed) — paired with the
+//      motorConfig set by app.js. Forward speed = mean of effective motor
+//      speeds; turn rate = lateral-offset-weighted difference. This lets two
+//      wheels at opposite y positions act as a left/right drivetrain.
+//
+// Motors override the legacy velocity/turnRate when ANY motor is non-zero.
+// Calling setVelocity / setTurnRate while motors are active has no effect for
+// that frame — first stop the motors. (Lessons that don't use motor blocks
+// never touch setMotorSpeed and stay on the legacy path.)
 
 const SimEngine = (() => {
-  // ── Constants ───────────────────────────────────────────────────────────────
+  // ── Constants ──────────────────────────────────────────────────────────────
   const ROBOT_WIDTH        = 109;
   const ROBOT_HEIGHT       = 75;
   const DEFAULT_ARENA_W    = 1500;
   const DEFAULT_ARENA_H    = 1500;
   const TRAIL_MAX_POINTS   = 600;
-  const TRAIL_SAMPLE_RATE  = 2;     // record a trail point every N ticks
+  const TRAIL_SAMPLE_RATE  = 2;
   const MOVE_THRESHOLD     = 0.1;
   const ANGLE_SNAP_EPSILON = 0.001;
 
-  // Rigid-body tuning. THRUST_COEFF is calibrated so that two centered motors
-  // at speed=10 produce roughly the same forward speed as the legacy
-  // tank-drive shortcut (~10 px/frame). LINEAR_DAMPING < 1 keeps motion stable
-  // under sustained thrust and provides a velocity ceiling. ANGULAR_DAMPING
-  // is more aggressive — angular momentum should bleed off quickly so users
-  // see prompt response when motors stop.
-  const THRUST_COEFF       = 0.7;
-  const LINEAR_DAMPING     = 0.86;
-  const ANGULAR_DAMPING    = 0.78;
+  // Tank-drive scaling. Calibrated so that two motors at speed 10 produce
+  // a forward velocity of ~10 px/frame, matching the legacy lessons that
+  // expect setVelocity(10) and "spin both motors at 10" to behave the same.
+  const MOTOR_FORWARD_SCALE = 1.0;
+  // Turn rate scaling. Empirical — picked so that one motor at +10 and the
+  // other at -10 produces a comfortable on-the-spot rotation (~0.08 rad/frame).
+  const MOTOR_TURN_SCALE    = 0.04;
 
-  // Mass / inertia scales. We treat each part as a unit point mass
-  // (mass = part count). Moment-of-inertia uses a point-mass approximation
-  // sum(|r|²) about the body COM — clamped from below so a single-part body
-  // still has finite angular inertia.
-  const MIN_INERTIA        = 1.0;
-
-  // ── Singleton sim state ───────────────────────────────────────────────────
-  let arenaW    = DEFAULT_ARENA_W;
-  let arenaH    = DEFAULT_ARENA_H;
+  // ── Sim state (singleton) ─────────────────────────────────────────────────
+  let arenaW = DEFAULT_ARENA_W, arenaH = DEFAULT_ARENA_H;
   let obstacles = [];
-  let running   = false;
-  let rafId     = null;
-  let onTickCb  = null;
-  let onCollisionCb = null;
+  let running = false, rafId = null;
+  let onTickCb = null, onCollisionCb = null;
+
+  // Robot pose + velocity (single body, legacy shape preserved).
+  let robot = {
+    x: arenaW / 2, y: arenaH / 2,
+    angle: -Math.PI / 2,
+    velocity: 0,
+    turnRate: 0,
+    width: ROBOT_WIDTH,
+    height: ROBOT_HEIGHT
+  };
+
+  // Trail
+  let trail = [];
+  let trailTick = 0;
+
+  // Collision flash timestamp (set when robot collides; consumed by simCanvas)
+  let collisionFlashAt = 0;
 
   // Goal zone
-  let goalZone      = null;
-  let onGoalReached = null;
+  let goalZone = null;
   let goalTriggered = false;
+  let onGoalReached = null;
 
-  // Collision flash (shared across all bodies — set when ANY body collides)
-  let collisionFlashAt = 0;
+  // Angle target (frame-rate-independent turn-by-degrees)
+  let _angleTarget = null;
+  let _angleDoneCb = null;
+
+  // Motors
+  let _motorConfig = null;
+  let _motors      = {};   // name -> { speed, reversed, wired, lateralOffset }
 
   // Debug
   let debugState = makeFreshDebug();
@@ -66,230 +85,72 @@ const SimEngine = (() => {
              turnCount: 0, distanceTraveled: 0 };
   }
 
-  // ── Build-time inputs ─────────────────────────────────────────────────────
-  // Latest snapshot of what the user built. Bodies are derived from this.
-  let _placedParts = [];
-  let _motorConfig = null;   // { motors: [{ name, label, partId, reversed, wired, forwardFactor, lateralFactor, ... }] }
-  let _motors      = {};     // name -> { speed, reversed, wired, partId, _bodyLocalLateral, _bodyLocalLongitudinal, ... }
-
-  // ── Bodies ────────────────────────────────────────────────────────────────
-  // A body owns its pose, velocity, parts list (with body-local offsets), and
-  // its own trail. The "default body" is used when no parts are configured —
-  // it preserves the legacy single-robot behaviour for lessons.
-  let bodies = [];
-  let primaryBodyIdx = 0;
-
-  function makeDefaultBody() {
-    return {
-      id: 'default',
-      x: arenaW / 2, y: arenaH / 2, angle: -Math.PI / 2,
-      vx: 0, vy: 0, omega: 0,
-      // Legacy tank-drive shadow values (still consumed if no real bodies)
-      legacyVelocity: 0, legacyTurnRate: 0,
-      width: ROBOT_WIDTH, height: ROBOT_HEIGHT,
-      mass: 1, inertia: MIN_INERTIA,
-      parts: [],
-      motorNames: [],
-      hasWheel: true, // synthetic — legacy mode always responds to thrust
-      isDefault: true,
-      trail: [], trailTick: 0,
-      goalReached: false
-    };
+  // ── Init / reset ──────────────────────────────────────────────────────────
+  function init(width, height) {
+    arenaW = width; arenaH = height;
+    resetRobot();
   }
 
-  // Initial single default body
-  bodies = [makeDefaultBody()];
-
-  // ── Connectivity graph + body construction ────────────────────────────────
-
-  // Two parts are "connected" if any pair of world-space snap points are
-  // within SNAP_THRESHOLD. We use the same logic as the build-time snap
-  // system; this is also how the user wired them visually.
-  function _partsConnected(a, b) {
-    if (typeof getWorldSnapPoints !== 'function' || typeof SNAP_THRESHOLD === 'undefined') {
-      return false;
-    }
-    const aSPs = getWorldSnapPoints(a);
-    const bSPs = getWorldSnapPoints(b);
-    for (const sa of aSPs) {
-      for (const sb of bSPs) {
-        const dx = sa.x - sb.x;
-        const dy = sa.y - sb.y;
-        if (dx * dx + dy * dy < SNAP_THRESHOLD * SNAP_THRESHOLD) return true;
-      }
-    }
-    return false;
+  function resetRobot() {
+    robot.x = arenaW / 2;
+    robot.y = arenaH / 2;
+    robot.angle = -Math.PI / 2;
+    robot.velocity = 0;
+    robot.turnRate = 0;
+    trail = []; trailTick = 0;
+    stopAllMotors();
+    resetDebugState();
+    goalTriggered = false;
+    _angleTarget = null;
+    _angleDoneCb = null;
   }
 
-  function _buildBodies(placedParts) {
-    if (!placedParts || placedParts.length === 0) {
-      bodies = [makeDefaultBody()];
-      primaryBodyIdx = 0;
-      return;
-    }
-
-    // Union-Find over placedParts indices
-    const n = placedParts.length;
-    const parent = new Array(n);
-    for (let i = 0; i < n; i++) parent[i] = i;
-    function find(x) { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
-    function union(a, b) { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
-
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        if (_partsConnected(placedParts[i], placedParts[j])) union(i, j);
-      }
-    }
-
-    // Group by root
-    const groups = new Map(); // root -> [partIdx,...]
-    for (let i = 0; i < n; i++) {
-      const r = find(i);
-      if (!groups.has(r)) groups.set(r, []);
-      groups.get(r).push(i);
-    }
-
-    // Build body objects
-    const newBodies = [];
-    for (const [, idxList] of groups) {
-      const groupParts = idxList.map(i => placedParts[i]);
-
-      // Centroid in build-canvas coords (use part center)
-      let sumX = 0, sumY = 0;
-      const partCenters = groupParts.map(p => {
-        const def = (typeof getPartDef === 'function') ? getPartDef(p.type) : null;
-        const pw = def ? getEffectiveW(p, def) : 32;
-        const ph = def ? getEffectiveH(p, def) : 22;
-        const cx = p.position.x + pw / 2;
-        const cy = p.position.y + ph / 2;
-        sumX += cx; sumY += cy;
-        return { p, cx, cy };
-      });
-      const comX = sumX / groupParts.length;
-      const comY = sumY / groupParts.length;
-
-      // AABB extents (used for legacy width/height / collision)
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      groupParts.forEach(p => {
-        const def = (typeof getPartDef === 'function') ? getPartDef(p.type) : null;
-        const pw = def ? getEffectiveW(p, def) : 32;
-        const ph = def ? getEffectiveH(p, def) : 22;
-        if (p.position.x       < minX) minX = p.position.x;
-        if (p.position.y       < minY) minY = p.position.y;
-        if (p.position.x + pw  > maxX) maxX = p.position.x + pw;
-        if (p.position.y + ph  > maxY) maxY = p.position.y + ph;
-      });
-      const aabbW = Math.max(8, maxX - minX);
-      const aabbH = Math.max(8, maxY - minY);
-
-      // Body-local part records (offset from COM, in build-canvas frame)
-      const bodyParts = partCenters.map(({ p, cx, cy }) => ({
-        id: p.id,
-        type: p.type,
-        // Local offset from body COM, in build-frame. Build-frame y axis
-        // maps to body-local "left/right" because the build canvas is
-        // rendered rotated -90° in the sim — so localY is the lateral lever
-        // arm consumed by the motor torque calculation in `tick()`.
-        localX: cx - comX,
-        localY: cy - comY,
-        rotation: p.rotation || 0,
-        props: Object.assign({}, p.props || {})
-      }));
-
-      const motorNames = [];
-      let hasWheel = false;
-      let wheelCount = 0;
-      bodyParts.forEach(bp => {
-        if (bp.type === 'wheel') { hasWheel = true; wheelCount++; }
-      });
-      const partIdSet = new Set(groupParts.map(p => p.id));
-      // Map motor names → which body holds them (we'll resolve from _motorConfig later)
-      // Here we just remember which partIds belong to this body so we can compute it.
-
-      // Mass & inertia (point-mass per part about COM)
-      const mass = groupParts.length;
-      let inertia = 0;
-      bodyParts.forEach(bp => { inertia += bp.localX * bp.localX + bp.localY * bp.localY; });
-      inertia = Math.max(MIN_INERTIA, inertia);
-
-      newBodies.push({
-        id: 'body-' + idxList.join('-'),
-        x: comX, y: comY,        // initial pose = COM in build coords (will be reset by setStartPosition)
-        angle: 0,
-        vx: 0, vy: 0, omega: 0,
-        legacyVelocity: 0, legacyTurnRate: 0,
-        width: aabbW, height: aabbH,
-        mass,
-        inertia,
-        parts: bodyParts,
-        partIds: partIdSet,
-        motorNames,                // filled in below
-        hasWheel,
-        wheelCount,
-        isDefault: false,
-        trail: [], trailTick: 0,
-        goalReached: false
-      });
-    }
-
-    // Pick primary body: most wheels, then largest part count.
-    let bestIdx = 0, bestScore = -Infinity;
-    for (let i = 0; i < newBodies.length; i++) {
-      const b = newBodies[i];
-      const score = b.wheelCount * 1000 + b.parts.length;
-      if (score > bestScore) { bestScore = score; bestIdx = i; }
-    }
-    bodies = newBodies;
-    primaryBodyIdx = bestIdx;
-
-    // Map motors → bodies and compute each motor's body-local lever arm.
-    // Lever arms must be derived per-body (relative to that body's COM), not
-    // relative to a global motor-assembly centroid — multi-body builds would
-    // otherwise use a meaningless reference point.
-    _assignMotorLeverArms();
+  function setStartPosition(x, y, angleDeg) {
+    robot.x = x;
+    robot.y = y;
+    robot.angle = (angleDeg || 0) * Math.PI / 180;
+    robot.velocity = 0;
+    robot.turnRate = 0;
+    trail = []; trailTick = 0;
+    resetDebugState();
+    goalTriggered = false;
+    _angleTarget = null;
+    _angleDoneCb = null;
   }
 
-  // Maps each motor in `_motorConfig` onto whichever body owns it (matched by
-  // partId), pushes its name into that body's `motorNames`, and sets the
-  // motor's body-local lever-arm fields (`_bodyLocalLateral` / `_bodyLocalLongitudinal`)
-  // from the motor's actual position relative to that body's COM. Called from
-  // `_buildBodies` AND from `setMotorConfig` (which rebuilds `_motors` from
-  // scratch and would otherwise lose the lever-arm info, causing motors to
-  // fall back to 0 and bodies to spin uncontrollably on subsequent runs).
-  function _assignMotorLeverArms() {
-    if (!bodies || bodies.length === 0 || bodies[0].isDefault) return;
-    if (!_motorConfig || !_motorConfig.motors) return;
+  // ── Setters ───────────────────────────────────────────────────────────────
+  function setObstacles(obs)    { obstacles = obs || []; }
+  function setOnTick(fn)        { onTickCb = fn; }
+  function setOnCollision(fn)   { onCollisionCb = fn; }
+  function setGoalZone(zone)    { goalZone = zone; goalTriggered = false; }
+  function setOnGoalReached(fn) { onGoalReached = fn; }
 
-    // Reset motorNames before re-mapping so repeated calls don't duplicate.
-    for (const b of bodies) { b.motorNames = []; }
-
-    for (const m of _motorConfig.motors) {
-      for (const b of bodies) {
-        if (!b.partIds || !b.partIds.has(m.partId)) continue;
-        b.motorNames.push(m.name);
-        // Find this motor's part record on the body to read its build-frame
-        // center. Body-local part records carry localX/localY (offsets from
-        // COM in the build frame). The build canvas is rendered rotated -90°
-        // in the sim, so the body's lateral axis aligns with build-frame y.
-        const bp = b.parts.find(pr => pr.id === m.partId);
-        if (bp && _motors[m.name]) {
-          _motors[m.name]._bodyLocalLongitudinal = bp.localX;
-          _motors[m.name]._bodyLocalLateral      = bp.localY;
-        }
-        break;
-      }
-    }
+  function setVelocity(v) {
+    const n = Number(v);
+    if (!isFinite(n)) return;
+    if (n !== 0) debugState.movedCalled = true;
+    robot.velocity = n;
   }
 
-  // ── Trail helpers (primary body for legacy callers) ───────────────────────
-  function getTrail()   { return bodies[primaryBodyIdx]?.trail || []; }
-  function getTrails()  { return bodies.map(b => b.trail); }
-  function clearTrail() { for (const b of bodies) { b.trail = []; b.trailTick = 0; } }
+  function setTurnRate(r) {
+    const n = Number(r);
+    if (!isFinite(n)) return;
+    if (n !== 0) debugState.turnedCalled = true;
+    robot.turnRate = n;
+  }
 
-  // ── Collision flash ───────────────────────────────────────────────────────
-  function getCollisionFlash() { return collisionFlashAt; }
+  // ── Angle target (turn-by-degrees) ────────────────────────────────────────
+  function setAngleTarget(angle, onDone) {
+    _angleTarget = angle;
+    _angleDoneCb = onDone || null;
+    debugState.turnCount++;
+  }
+  function clearAngleTarget() { _angleTarget = null; _angleDoneCb = null; }
 
-  // ── Motor state ───────────────────────────────────────────────────────────
+  // ── Motor config / control ────────────────────────────────────────────────
+  // The motorConfig from app.js carries each motor's identity, wiring, reversed
+  // flag, and `lateralOffset` (signed distance from chassis center along the
+  // lateral axis — used to derive turn rate from per-motor speed differences).
   function setMotorConfig(config) {
     _motorConfig = config;
     _motors = {};
@@ -300,22 +161,11 @@ const SimEngine = (() => {
           speed: 0,
           reversed: !!m.reversed,
           wired: !!m.wired,
-          forwardFactor: m.forwardFactor ?? 1,
-          lateralFactor: m.lateralFactor ?? 0,
+          lateralOffset: (typeof m.lateralOffset === 'number') ? m.lateralOffset : 0,
           partId: m.partId
-          // _bodyLocalLateral / _bodyLocalLongitudinal are filled in by
-          // _assignMotorLeverArms() below — they are the per-body source of
-          // truth for the motor's lever arm.
         };
       });
     }
-    // Rebuild body→motor mapping AND recompute each motor's body-local lever
-    // arms. Without this, edits to motor props after the first run would
-    // wipe the lever-arm values (we just rebuilt _motors from scratch) and
-    // physics would silently fall back to zero — a multi-body build's
-    // off-COM motors would then spin their body uncontrollably on the
-    // second run.
-    _assignMotorLeverArms();
   }
   function getMotorConfig() { return _motorConfig; }
 
@@ -324,299 +174,159 @@ const SimEngine = (() => {
     if (!isFinite(n)) return;
     const m = _motors[name];
     if (!m) return;
-    if (!m.wired) return; // unwired motors get no signal
+    if (!m.wired) return;
     m.speed = n;
     if (n !== 0) debugState.movedCalled = true;
   }
 
-  function stopMotor(name)  { if (_motors[name]) _motors[name].speed = 0; }
-  function stopAllMotors()  { for (const k in _motors) _motors[k].speed = 0; }
-  function hasActiveMotors(){
+  function stopMotor(name)   { if (_motors[name]) _motors[name].speed = 0; }
+  function stopAllMotors()   { for (const k in _motors) _motors[k].speed = 0; }
+  function hasActiveMotors() {
     for (const k in _motors) if (_motors[k].speed !== 0) return true;
     return false;
   }
 
-  // ── Angle target (frame-rate-independent turns, primary body only) ────────
-  let _angleTarget = null;
-  let _angleDoneCb = null;
-  function setAngleTarget(angle, onDone) {
-    _angleTarget = angle;
-    _angleDoneCb = onDone || null;
-    debugState.turnCount++;
-  }
-  function clearAngleTarget() { _angleTarget = null; _angleDoneCb = null; }
-
-  function getDebugState()   { return Object.assign({}, debugState); }
-  function resetDebugState() { debugState = makeFreshDebug(); }
-
-  function setOnCollision(fn)   { onCollisionCb = fn; }
-  function setGoalZone(zone)    { goalZone = zone; goalTriggered = false; for (const b of bodies) b.goalReached = false; }
-  function setOnGoalReached(fn) { onGoalReached = fn; }
-
-  // ── Init / reset ──────────────────────────────────────────────────────────
-  function init(width, height) {
-    arenaW = width;
-    arenaH = height;
-    resetRobot();
-  }
-
-  function resetRobot() {
-    // Rebuild bodies from cached placed parts so the connectivity graph is
-    // fresh on every run (the spec: "Connectivity graph is computed once at
-    // run-start. Resetting recomputes.")
-    _buildBodies(_placedParts);
-    _placeBodiesAt(arenaW / 2, arenaH / 2, -Math.PI / 2);
-    stopAllMotors();
-    resetDebugState();
-    goalTriggered = false;
-  }
-
-  function setStartPosition(x, y, angleDeg) {
-    // Rebuild bodies fresh — the user may have changed the build between runs.
-    _buildBodies(_placedParts);
-    _placeBodiesAt(x, y, (angleDeg || 0) * Math.PI / 180);
-    resetDebugState();
-    goalTriggered = false;
-  }
-
-  // Place all bodies at (x, y) facing `angle`. The primary body anchors
-  // exactly at (x, y); other bodies preserve their relative offset from the
-  // primary's build-time COM so disconnected drivetrains spawn in their
-  // natural relative positions instead of overlapping.
-  function _placeBodiesAt(x, y, angle) {
-    const primary = bodies[primaryBodyIdx];
-    // Build-time COMs are stored on b.x / b.y immediately after _buildBodies.
-    const anchorX = primary ? primary.x : 0;
-    const anchorY = primary ? primary.y : 0;
-    for (const b of bodies) {
-      const dx = b.x - anchorX;
-      const dy = b.y - anchorY;
-      b.x = x + dx;
-      b.y = y + dy;
-      b.angle = angle;
-      b.vx = 0; b.vy = 0; b.omega = 0;
-      b.legacyVelocity = 0; b.legacyTurnRate = 0;
-      b.trail = []; b.trailTick = 0;
-      b.goalReached = false;
+  // Mix per-motor speeds into chassis-level (velocity, turnRate). Returns
+  // null when no motor is wired/active so legacy callers stay in control.
+  function _motorMix() {
+    const active = [];
+    for (const k in _motors) {
+      const m = _motors[k];
+      if (!m.wired) continue;
+      if (m.speed === 0) continue;
+      active.push(m);
     }
+    if (active.length === 0) return null;
+    let sumSpeed = 0;
+    let sumTurn  = 0;
+    let nLateral = 0;
+    for (const m of active) {
+      const eff = m.reversed ? -m.speed : m.speed;
+      sumSpeed += eff;
+      // Positive lateralOffset = right side, negative = left side. Right-side
+      // motors going forward (positive eff) push the chassis to turn left
+      // (negative angle delta in screen coords, but we keep the sign convention
+      // consistent with the legacy setTurnRate API: positive turnRate = CW).
+      if (m.lateralOffset !== 0) {
+        sumTurn += eff * Math.sign(m.lateralOffset);
+        nLateral++;
+      }
+    }
+    const forward = (sumSpeed / active.length) * MOTOR_FORWARD_SCALE;
+    const turn    = (nLateral > 0 ? sumTurn / nLateral : 0) * MOTOR_TURN_SCALE;
+    return { forward, turn };
   }
 
-  function setObstacles(obs) { obstacles = obs || []; }
-  function setOnTick(fn)     { onTickCb = fn; }
+  // ── Trail / collision ─────────────────────────────────────────────────────
+  function getTrail()         { return trail; }
+  function clearTrail()       { trail = []; trailTick = 0; }
+  function getCollisionFlash(){ return collisionFlashAt; }
 
-  // Cache the parts the user has built. Bodies are rebuilt from this each
-  // time setStartPosition / resetRobot is called.
-  function setBuildParts(parts) {
-    _placedParts = Array.isArray(parts) ? parts : [];
-  }
+  // ── Debug ─────────────────────────────────────────────────────────────────
+  function getDebugState()    { return Object.assign({}, debugState); }
+  function resetDebugState()  { debugState = makeFreshDebug(); }
 
   // ── Accessors ─────────────────────────────────────────────────────────────
-  function _primary() { return bodies[primaryBodyIdx] || bodies[0]; }
-
-  function getRobot() {
-    // Returns the primary body's pose in legacy { x, y, angle, velocity,
-    // turnRate, width, height } shape. Velocity/turnRate are derived for
-    // legacy callers (e.g. trail consumers, sensor readings).
-    const b = _primary();
-    if (!b) return { x: 0, y: 0, angle: 0, velocity: 0, turnRate: 0, width: ROBOT_WIDTH, height: ROBOT_HEIGHT };
-    const speed = Math.hypot(b.vx, b.vy);
-    return { x: b.x, y: b.y, angle: b.angle, velocity: speed, turnRate: b.omega,
-             width: b.width, height: b.height };
-  }
-  function getState()     { return getRobot(); }
-  function getBodies()    { return bodies; }
-  function getObstacles() { return obstacles; }
-  function getArena()     { return { width: arenaW, height: arenaH }; }
-  function isRunning()    { return running; }
-
-  // ── Legacy tank-drive controls (apply to primary body) ────────────────────
-  function setVelocity(v) {
-    const n = Number(v);
-    if (!isFinite(n)) return;
-    if (n !== 0) debugState.movedCalled = true;
-    const b = _primary();
-    if (b) b.legacyVelocity = n;
-  }
-  function setTurnRate(r) {
-    const n = Number(r);
-    if (!isFinite(n)) return;
-    if (n !== 0) debugState.turnedCalled = true;
-    const b = _primary();
-    if (b) b.legacyTurnRate = n;
-  }
+  function getRobot()         { return robot; }
+  function getState()         { return robot; }
+  function getObstacles()     { return obstacles; }
+  function getArena()         { return { width: arenaW, height: arenaH }; }
+  function isRunning()        { return running; }
 
   // ── Physics tick ──────────────────────────────────────────────────────────
   function tick() {
-    let anyCollided = false;
+    // Per-motor tank-drive overrides legacy velocity/turnRate when active.
+    // This way classic lessons keep using setVelocity, while motor-block
+    // lessons drive via setMotorSpeed without the two interfering.
+    const mix = _motorMix();
+    if (mix) {
+      robot.velocity = mix.forward;
+      robot.turnRate = mix.turn;
+    }
 
-    for (let bi = 0; bi < bodies.length; bi++) {
-      const b = bodies[bi];
-      const isPrimary = (bi === primaryBodyIdx);
-      const hw = b.width / 2, hh = b.height / 2;
+    const prevX = robot.x, prevY = robot.y;
 
-      // ── Compute forces from motors ────────────────────────────────────────
-      let fx = 0, fy = 0, torque = 0;
-      const cosA = Math.cos(b.angle);
-      const sinA = Math.sin(b.angle);
+    // Integrate
+    robot.angle += robot.turnRate;
+    if (robot.turnRate !== 0) debugState.actuallyTurned = true;
 
-      if (b.hasWheel && b.motorNames.length > 0) {
-        for (const mname of b.motorNames) {
-          const m = _motors[mname];
-          if (!m || m.speed === 0) continue;
-          const effective = m.reversed ? -m.speed : m.speed;
-          const forceMag = effective * THRUST_COEFF;
-          // Local thrust direction: along the wheel's effective rotation =
-          // bodyAngle + partRotation. partRotation is encoded in the motor
-          // config as forwardFactor (cos) and lateralFactor (sin) so we can
-          // produce sideways thrust when a wheel is rotated 90° in the build
-          // tab. Falls back to forward (1, 0) for older configs.
-          const ff = (typeof m.forwardFactor === 'number') ? m.forwardFactor : 1;
-          const lf = (typeof m.lateralFactor === 'number') ? m.lateralFactor : 0;
-          const lfx = forceMag * ff;
-          const lfy = forceMag * lf;
-          // Lever arm in body-frame. body-local axes:
-          //   x_local = build-frame x = chassis longitudinal axis
-          //   y_local = build-frame y = chassis lateral axis
-          // The build canvas is rendered rotated -90° in the sim, so the
-          // body's lateral axis (where motors sit) aligns with build Y.
-          // `_bodyLocalLateral` / `_bodyLocalLongitudinal` are the sole
-          // source of truth, set by `_assignMotorLeverArms()` from the
-          // motor's actual position relative to its body's COM. They are
-          // re-set every time `_buildBodies` or `setMotorConfig` runs, so
-          // the only way 0 is read here is if a motor lives on no body
-          // (e.g. between rebuilds), in which case zero force/torque is
-          // the safe default.
-          const rxLocal = (typeof m._bodyLocalLongitudinal === 'number') ? m._bodyLocalLongitudinal : 0;
-          const ryLocal = (typeof m._bodyLocalLateral === 'number')      ? m._bodyLocalLateral      : 0;
-          // Rotate force + lever arm into world frame
-          const wfx = cosA * lfx - sinA * lfy;
-          const wfy = sinA * lfx + cosA * lfy;
-          const wrx = cosA * rxLocal - sinA * ryLocal;
-          const wry = sinA * rxLocal + cosA * ryLocal;
-          fx += wfx;
-          fy += wfy;
-          torque += wrx * wfy - wry * wfx;
-        }
-      }
-
-      // ── Legacy tank-drive contribution (primary body only) ────────────────
-      // setVelocity / setTurnRate emulate a centered thrust + a rotation
-      // about the COM. Implemented as a synthesized force/torque so existing
-      // lessons that don't use motor blocks still drive.
-      if (isPrimary && (b.legacyVelocity !== 0 || b.legacyTurnRate !== 0)) {
-        // Forward thrust from legacy velocity: scale to roughly match the
-        // legacy "1 px per frame per unit velocity" feel. The damping factor
-        // (1 - LINEAR_DAMPING) ≈ 0.14 means terminal speed ≈ accel/0.14, so
-        // accel = legacyVelocity * 0.14 keeps terminal speed close to v.
-        const drag = 1 - LINEAR_DAMPING;
-        const accel = b.legacyVelocity * drag * b.mass; // F = m*a
-        fx += cosA * accel;
-        fy += sinA * accel;
-        // Synthesized torque for legacy turnRate. Same calibration trick:
-        // terminal omega = torque / (inertia * (1 - ANGULAR_DAMPING)).
-        const adrag = 1 - ANGULAR_DAMPING;
-        torque += b.legacyTurnRate * adrag * b.inertia;
-        if (b.legacyVelocity !== 0) debugState.movedCalled = true;
-      }
-
-      // ── Integrate ─────────────────────────────────────────────────────────
-      const ax = fx / b.mass;
-      const ay = fy / b.mass;
-      const aa = torque / b.inertia;
-      b.vx += ax;
-      b.vy += ay;
-      b.omega += aa;
-
-      const prevX = b.x, prevY = b.y;
-      let nx = b.x + b.vx;
-      let ny = b.y + b.vy;
-      let nAngle = b.angle + b.omega;
-
-      if (b.omega !== 0) debugState.actuallyTurned = true;
-
-      // Angle-target snap (primary body only — legacy turn-to-angle behaviour)
-      if (isPrimary && _angleTarget !== null) {
-        const rate = b.omega;
-        const close = rate === 0
-          ? Math.abs(nAngle - _angleTarget) < ANGLE_SNAP_EPSILON
-          : Math.abs(nAngle - _angleTarget) < Math.abs(rate) + ANGLE_SNAP_EPSILON;
-        const overshoot = rate > 0 ? (nAngle >= _angleTarget) : (rate < 0 ? (nAngle <= _angleTarget) : false);
-        if (close || overshoot) {
-          nAngle = _angleTarget;
-          b.omega = 0;
-          // Also kill legacy turn rate so it doesn't keep injecting torque
-          b.legacyTurnRate = 0;
-          const cb = _angleDoneCb;
-          _angleTarget = null;
-          _angleDoneCb = null;
-          if (cb) cb();
-        }
-      }
-
-      // Arena boundary clamp
-      nx = Math.max(hw, Math.min(arenaW - hw, nx));
-      ny = Math.max(hh, Math.min(arenaH - hh, ny));
-
-      let collided = false;
-      // AABB collision vs obstacles
-      for (const obs of obstacles) {
-        if (aabbOverlap(nx - hw, ny - hh, b.width, b.height,
-                        obs.x, obs.y, obs.width, obs.height)) {
-          nx = prevX; ny = prevY;
-          b.vx = 0; b.vy = 0;
-          collided = true;
-          break;
-        }
-      }
-
-      // Wall edge flash
-      if (!collided && (nx !== prevX || ny !== prevY)) {
-        if (nx <= hw + 1 || nx >= arenaW - hw - 1 ||
-            ny <= hh + 1 || ny >= arenaH - hh - 1) {
-          collided = true;
-        }
-      }
-
-      b.x = nx; b.y = ny; b.angle = nAngle;
-
-      // Damping (applied after integration so terminal velocity is bounded)
-      b.vx *= LINEAR_DAMPING;
-      b.vy *= LINEAR_DAMPING;
-      b.omega *= ANGULAR_DAMPING;
-
-      // Trail
-      b.trailTick++;
-      if (b.trailTick % TRAIL_SAMPLE_RATE === 0) {
-        b.trail.push({ x: b.x, y: b.y, tick: b.trailTick });
-        if (b.trail.length > TRAIL_MAX_POINTS) b.trail.shift();
-      }
-
-      if (Math.abs(b.x - prevX) > MOVE_THRESHOLD || Math.abs(b.y - prevY) > MOVE_THRESHOLD) {
-        if (isPrimary) {
-          debugState.actuallyMoved = true;
-          debugState.distanceTraveled += Math.hypot(b.x - prevX, b.y - prevY);
-        }
-      }
-
-      if (collided) {
-        anyCollided = true;
-        if (isPrimary && onCollisionCb) onCollisionCb({ x: b.x, y: b.y, angle: b.angle, width: b.width, height: b.height });
-      }
-
-      // Goal zone — fires once when ANY wheeled body enters
-      if (goalZone && !goalTriggered && b.hasWheel && !b.goalReached) {
-        if (b.x >= goalZone.x && b.x <= goalZone.x + goalZone.width &&
-            b.y >= goalZone.y && b.y <= goalZone.y + goalZone.height) {
-          b.goalReached = true;
-          goalTriggered = true;
-          if (onGoalReached) onGoalReached();
-        }
+    // Angle-target snap (frame-rate-independent turns)
+    if (_angleTarget !== null) {
+      const rate = robot.turnRate;
+      const close = rate === 0
+        ? Math.abs(robot.angle - _angleTarget) < ANGLE_SNAP_EPSILON
+        : Math.abs(robot.angle - _angleTarget) < Math.abs(rate) + ANGLE_SNAP_EPSILON;
+      const overshoot = rate > 0
+        ? (robot.angle >= _angleTarget)
+        : (rate < 0 ? (robot.angle <= _angleTarget) : false);
+      if (close || overshoot) {
+        robot.angle = _angleTarget;
+        robot.turnRate = 0;
+        const cb = _angleDoneCb;
+        _angleTarget = null;
+        _angleDoneCb = null;
+        if (cb) cb();
       }
     }
 
-    if (anyCollided) collisionFlashAt = Date.now();
+    let nx = robot.x + Math.cos(robot.angle) * robot.velocity;
+    let ny = robot.y + Math.sin(robot.angle) * robot.velocity;
 
-    if (onTickCb) onTickCb(getRobot());
+    const hw = robot.width / 2, hh = robot.height / 2;
+
+    // Arena boundary clamp
+    nx = Math.max(hw, Math.min(arenaW - hw, nx));
+    ny = Math.max(hh, Math.min(arenaH - hh, ny));
+
+    let collided = false;
+    for (const obs of obstacles) {
+      if (aabbOverlap(nx - hw, ny - hh, robot.width, robot.height,
+                      obs.x, obs.y, obs.width, obs.height)) {
+        nx = prevX; ny = prevY;
+        collided = true;
+        break;
+      }
+    }
+    // Wall edge flash
+    if (!collided && (nx !== prevX || ny !== prevY)) {
+      if (nx <= hw + 1 || nx >= arenaW - hw - 1 ||
+          ny <= hh + 1 || ny >= arenaH - hh - 1) {
+        collided = true;
+      }
+    }
+
+    robot.x = nx;
+    robot.y = ny;
+
+    // Trail
+    trailTick++;
+    if (trailTick % TRAIL_SAMPLE_RATE === 0) {
+      trail.push({ x: robot.x, y: robot.y, tick: trailTick });
+      if (trail.length > TRAIL_MAX_POINTS) trail.shift();
+    }
+
+    if (Math.abs(robot.x - prevX) > MOVE_THRESHOLD ||
+        Math.abs(robot.y - prevY) > MOVE_THRESHOLD) {
+      debugState.actuallyMoved = true;
+      debugState.distanceTraveled += Math.hypot(robot.x - prevX, robot.y - prevY);
+    }
+
+    if (collided) {
+      collisionFlashAt = Date.now();
+      if (onCollisionCb) onCollisionCb({ x: robot.x, y: robot.y, angle: robot.angle,
+                                          width: robot.width, height: robot.height });
+    }
+
+    // Goal zone
+    if (goalZone && !goalTriggered) {
+      if (robot.x >= goalZone.x && robot.x <= goalZone.x + goalZone.width &&
+          robot.y >= goalZone.y && robot.y <= goalZone.y + goalZone.height) {
+        goalTriggered = true;
+        if (onGoalReached) onGoalReached();
+      }
+    }
+
+    if (onTickCb) onTickCb(robot);
   }
 
   function aabbOverlap(x1, y1, w1, h1, x2, y2, w2, h2) {
@@ -643,12 +353,10 @@ const SimEngine = (() => {
   return {
     init, resetRobot, setStartPosition,
     setObstacles, setOnTick,
-    setBuildParts,
     getRobot, getState, getObstacles, getArena, isRunning,
-    getBodies,
     setVelocity, setTurnRate,
     startLoop, stopLoop, tick,
-    getTrail, getTrails, clearTrail,
+    getTrail, clearTrail,
     getCollisionFlash,
     getDebugState, resetDebugState,
     setGoalZone, setOnGoalReached,

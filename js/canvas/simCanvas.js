@@ -23,6 +23,7 @@ const SimCanvas = (() => {
 
   function draw() {
     const { width, height } = canvas;
+    const robot     = SimEngine.getRobot();
     const obstacles = SimEngine.getObstacles();
     const arena     = { width, height };
 
@@ -30,30 +31,23 @@ const SimCanvas = (() => {
     drawArena(width, height);
     if (goalZoneConfig) drawGoalZone(goalZoneConfig);
 
-    // Draw a trail per body so disconnected drivetrains leave separate marks.
-    drawTrails();
+    drawTrail();
     drawObstacles(obstacles);
 
-    const bodies = (typeof SimEngine.getBodies === 'function') ? SimEngine.getBodies() : null;
-    const primary = SimEngine.getRobot();
-
-    // Sensor ray comes from the primary body. With multiple bodies we'd need
-    // an "active sensor body" concept; for now the primary body wins.
+    // Only draw sensor ray if robot has a distance sensor (or no parts = generic mode)
     const hasSensor = robotConfig.parts.some(p => p.type === 'distance-sensor');
     if (hasSensor || robotConfig.parts.length === 0) {
-      drawSensorRay(primary, obstacles, arena);
+      drawSensorRay(robot, obstacles, arena);
     }
 
-    if (bodies && bodies.length > 0 && !bodies[0].isDefault) {
-      // Multi-body render: each body draws its own subset of parts.
-      for (const b of bodies) drawBodyAssembly(b);
-    } else if (robotConfig.parts.length > 0) {
-      drawBuiltRobot(primary);
+    // Draw built robot if parts exist, otherwise the generic placeholder
+    if (robotConfig.parts.length > 0) {
+      drawBuiltRobot(robot);
     } else {
-      drawGenericRobot(primary);
+      drawGenericRobot(robot);
     }
 
-    drawCollisionFlash(primary);
+    drawCollisionFlash(robot);
   }
 
   // ── Arena ─────────────────────────────────────────────────────────────────
@@ -125,31 +119,19 @@ const SimCanvas = (() => {
 
   // ── Trail ─────────────────────────────────────────────────────────────────
 
-  // Draw a separate trail per body so disconnected drivetrains are visually distinct.
-  function drawTrails() {
-    const all = (typeof SimEngine.getTrails === 'function') ? SimEngine.getTrails() : [SimEngine.getTrail()];
-    if (!all || all.length === 0) return;
+  function drawTrail() {
+    const trail = SimEngine.getTrail();
+    if (!trail || trail.length < 2) return;
     const tc = window._themeColors || {};
     ctx.save();
-    ctx.lineWidth = 2;
-    ctx.lineCap   = 'round';
-    ctx.lineJoin  = 'round';
-    for (let i = 0; i < all.length; i++) {
-      const pts = all[i];
-      if (!pts || pts.length < 2) continue;
-      // Cycle through a small palette so multiple bodies are distinguishable.
-      const palette = [
-        tc.trail || 'rgba(59,130,246,0.4)',
-        'rgba(236,72,153,0.4)',  // pink
-        'rgba(16,185,129,0.4)',  // green
-        'rgba(245,158,11,0.4)'   // amber
-      ];
-      ctx.strokeStyle = palette[i % palette.length];
-      ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for (let j = 1; j < pts.length; j++) ctx.lineTo(pts[j].x, pts[j].y);
-      ctx.stroke();
-    }
+    ctx.strokeStyle = tc.trail || 'rgba(59,130,246,0.4)';
+    ctx.lineWidth   = 2;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+    ctx.beginPath();
+    ctx.moveTo(trail[0].x, trail[0].y);
+    for (let i = 1; i < trail.length; i++) ctx.lineTo(trail[i].x, trail[i].y);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -221,56 +203,6 @@ const SimCanvas = (() => {
   }
 
   // ── Built robot ───────────────────────────────────────────────────────────
-
-  // Render a single body's part group at its current pose.
-  // Falls back to the generic robot if the body is the synthetic default.
-  function drawBodyAssembly(body) {
-    if (!body) return;
-    if (body.isDefault || !body.parts || body.parts.length === 0) {
-      drawGenericRobot({ x: body.x, y: body.y, angle: body.angle,
-                         width: body.width, height: body.height });
-      return;
-    }
-    const renderer = (typeof PartRenderers2D !== 'undefined') ? PartRenderers2D : BuildCanvas;
-    // Reconstruct configParts shape from body-local offsets. The
-    // drawAssemblyToContext helper expects { type, position, rotation, props }
-    // and re-derives a body-relative scale; we feed it offsets centred at 0.
-    const synthParts = body.parts.map(bp => {
-      const def = (typeof getPartDef === 'function') ? getPartDef(bp.type) : null;
-      const pw = def ? getEffectiveW({ type: bp.type, props: bp.props }, def) : 32;
-      const ph = def ? getEffectiveH({ type: bp.type, props: bp.props }, def) : 22;
-      return {
-        type: bp.type,
-        position: { x: bp.localX - pw / 2, y: bp.localY - ph / 2 },
-        rotation: bp.rotation || 0,
-        props: bp.props || {}
-      };
-    });
-    const maxPx = 80;
-    const drawn = renderer.drawAssemblyToContext(ctx, synthParts, body.x, body.y, body.angle, maxPx);
-    if (!drawn) {
-      drawGenericRobot({ x: body.x, y: body.y, angle: body.angle,
-                         width: body.width, height: body.height });
-    }
-
-    // Direction indicator
-    const tc2 = window._themeColors || {};
-    ctx.save();
-    ctx.translate(body.x, body.y);
-    ctx.rotate(body.angle);
-    ctx.fillStyle   = tc2.dirArrowFill || '#fff';
-    ctx.strokeStyle = tc2.dirArrowStroke || '#3B82F6';
-    ctx.lineWidth   = 1.5;
-    ctx.shadowColor = 'rgba(59,130,246,0.5)';
-    ctx.shadowBlur  = 4;
-    ctx.beginPath();
-    ctx.moveTo(16,  0);
-    ctx.lineTo(8,  -5);
-    ctx.lineTo(8,   5);
-    ctx.closePath();
-    ctx.fill(); ctx.stroke();
-    ctx.restore();
-  }
 
   function drawBuiltRobot(robot) {
     const maxPx = 80;

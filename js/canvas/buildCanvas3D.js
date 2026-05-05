@@ -445,8 +445,14 @@ const BuildCanvas3D = (() => {
     return mesh;
   }
 
-  function createCChannel(lengthUnits) {
-    const length = (lengthUnits || 5) * 0.7; // scale factor: 5 holes = ~3.5 world units
+  // Build a 3D C-channel of `lengthPx` (sim-pixels). The 3D world-unit length
+  // is lengthPx scaled by the standard 2D->3D factor (PX_TO_WORLD). Holes are
+  // placed at the same x positions as snapSystem.buildCChannelSnaps so the
+  // visual hole count matches the snap density exactly.
+  function createCChannel(lengthPx) {
+    const PX_TO_WORLD = 0.035; // matches the historic ratio: 100 sim-px ≈ 3.5 world units
+    const lp = (typeof lengthPx === 'number' && isFinite(lengthPx)) ? lengthPx : 100;
+    const length = Math.max(0.5, lp * PX_TO_WORLD);
     const group = new THREE.Group();
     group.userData.partType = 'c-channel';
 
@@ -468,12 +474,12 @@ const BuildCanvas3D = (() => {
     rightWall.castShadow = true;
     group.add(rightWall);
 
-    // Holes and snap points
-    const holeCount = Math.max(1, Math.floor(length / 0.7));
-    for (let i = 0; i < holeCount; i++) {
-      const hx = -length / 2 + 0.35 + i * 0.7;
+    // Hole positions in sim-px = 5, 10, ..., lp - 25 (mirrors snapSystem.buildCChannelSnaps).
+    // Convert to world-units, then offset so x=0 is the channel's center.
+    for (let hxPx = 5; hxPx <= lp - 25; hxPx += 5) {
+      const hx = (hxPx * PX_TO_WORLD) - length / 2;
       const hole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.08, 0.08, 0.12, 8),
+        new THREE.CylinderGeometry(0.04, 0.04, 0.12, 8),
         MATERIALS.hole.clone()
       );
       hole.position.set(hx, 0.06, 0);
@@ -695,9 +701,7 @@ const BuildCanvas3D = (() => {
     switch (partType) {
       case 'c-channel': {
         const lengthPx = (props && props.length) || 100;
-        // Convert 2D px length to hole count: every 20px = 1 hole
-        const holeCount = Math.max(2, Math.round(lengthPx / 20));
-        return createCChannel(holeCount);
+        return createCChannel(lengthPx);
       }
       case 'motor':           return createMotor();
       case 'wheel':           return createWheel();

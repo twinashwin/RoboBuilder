@@ -1198,11 +1198,6 @@
     if (typeof CodeCanvas3D !== 'undefined' && CodeCanvas3D && _codeCanvas3DInited) {
       CodeCanvas3D.setRobotConfig(robotConfig);
     }
-    // Tell SimEngine which parts the user has built so it can derive
-    // connected-component bodies at run-start.
-    if (SimEngine && typeof SimEngine.setBuildParts === 'function') {
-      SimEngine.setBuildParts(robotConfig.parts || []);
-    }
 
     // Update sensor range
     const sensorPart = robotConfig.parts.find(p => p.type === 'distance-sensor');
@@ -1255,12 +1250,22 @@
       return;
     }
 
-    // Lever arms are computed by SimEngine per-body in `_assignMotorLeverArms`
-    // (relative to each body's COM, which is the correct reference for
-    // multi-body builds). This file just supplies identity, wiring, and
-    // orientation; it does NOT precompute any lateral offset because doing so
-    // here would average across all motors regardless of which body they
-    // belong to — meaningless when a build has more than one drivetrain.
+    // Pick whichever axis (X or Y) the motors are spread along — the build
+    // canvas places left/right motors on whichever feels natural in its frame
+    // (BuildCanvas2D spreads motors along X, BuildCanvas3D along Y after
+    // export). Each motor's `lateralOffset` is signed along that axis;
+    // SimEngine uses it to derive turn rate from per-motor speed differences.
+    // With one motor, lateralOffset is 0 and the chassis only drives forward.
+    const meanX = motors.reduce((sum, m) => sum + (m.position?.x || 0), 0) / motors.length;
+    const meanY = motors.reduce((sum, m) => sum + (m.position?.y || 0), 0) / motors.length;
+    let varX = 0, varY = 0;
+    motors.forEach(m => {
+      const dx = (m.position?.x || 0) - meanX;
+      const dy = (m.position?.y || 0) - meanY;
+      varX += dx * dx;
+      varY += dy * dy;
+    });
+    const useY = varY > varX;
 
     // Check which motors are wired to brain
     const brainPart = parts.find(p => p.type === 'brain');
@@ -1276,21 +1281,18 @@
       });
     }
 
-    // Position-based motor config. forwardFactor / lateralFactor encode the
-    // motor's rotation in the build frame so off-axis motors thrust at the
-    // correct angle. The motor's body-local lever arm is computed inside
-    // SimEngine (see `_assignMotorLeverArms`) — not here.
     const fallbackNames = 'ABCDEFGH';
     const motorConfigs = motors.map((m, i) => {
       const customName = m.props?.motorName?.trim();
       const name  = fallbackNames[i] || String(i);
       const label = customName || ('Motor ' + name);
-      const rot = m.rotation || 0;
+      const lateralOffset = useY
+        ? (m.position?.y || 0) - meanY
+        : (m.position?.x || 0) - meanX;
       return {
         name,
         label,
-        forwardFactor: Math.cos(rot),
-        lateralFactor: Math.sin(rot),
+        lateralOffset,
         reversed: !!m.props?.reversed,
         wired: wiredMotorIds.has(m.id),
         partId: m.id
