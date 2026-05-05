@@ -458,9 +458,6 @@
       if (log) log.innerHTML = '';
     });
 
-    // Build sim thumb canvas (small field preview on build tab right panel)
-    initBuildSimThumb();
-
     // Make a Block modal
     _initMakeBlockModal();
 
@@ -470,133 +467,6 @@
     window._simStatus = '';
     window._activeTab = activeTab;
   });
-
-  // ── Build sim thumb ────────────────────────────────────────────────────────
-  // Shows a small read-only view of the sim arena in the build tab right panel
-
-  function initBuildSimThumb() {
-    const thumb = document.getElementById('build-sim-thumb');
-    if (!thumb) return;
-    drawSimThumb(thumb);
-    // Animate the thumb at ~4fps so the goal zone pulses
-    setInterval(() => {
-      if (activeTab === 'build') drawSimThumb(thumb);
-    }, 250);
-  }
-
-  function drawSimThumb(canvas) {
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const w = canvas.width, h = canvas.height;
-
-    // Scale factors: arena dims from lesson or default 1500×1500, thumb is w×h
-    const lesson0 = LESSONS[currentLessonIdx];
-    const arenaW = (lesson0 && lesson0.arenaWidth)  || 1500;
-    const arenaH = (lesson0 && lesson0.arenaHeight) || 1500;
-    const sx = w / arenaW, sy = h / arenaH;
-
-    // Checkerboard background
-    const tc = window._themeColors || {};
-    const tile = 20;
-    for (let row = 0; row < Math.ceil(h / tile); row++) {
-      for (let col = 0; col < Math.ceil(w / tile); col++) {
-        ctx.fillStyle = (row + col) % 2 === 0 ? (tc.arenaBg || '#FFFFFF') : (tc.arenaTile || '#F3F4F6');
-        ctx.fillRect(col * tile, row * tile, tile, tile);
-      }
-    }
-
-    // Grid lines
-    ctx.strokeStyle = tc.arenaGrid || 'rgba(0,0,0,0.04)';
-    ctx.lineWidth = 0.5;
-    for (let x = 0; x <= w; x += tile) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
-    for (let y = 0; y <= h; y += tile) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
-
-    // Current lesson data
-    const lesson = LESSONS[currentLessonIdx];
-
-    // Goal zone
-    if (lesson && lesson.goalZone) {
-      const gz = lesson.goalZone;
-      const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 600);
-      ctx.fillStyle = `rgba(16,185,129,${0.1 + pulse * 0.06})`;
-      ctx.strokeStyle = `rgba(16,185,129,${0.5 + pulse * 0.3})`;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 2]);
-      ctx.fillRect(gz.x * sx, gz.y * sy, gz.width * sx, gz.height * sy);
-      ctx.strokeRect(gz.x * sx, gz.y * sy, gz.width * sx, gz.height * sy);
-      ctx.setLineDash([]);
-      // Flag label
-      ctx.font = `${Math.round(8 * Math.min(sx, sy))}px sans-serif`;
-      ctx.fillStyle = 'rgba(16,185,129,0.8)';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('⚑', (gz.x + gz.width / 2) * sx, (gz.y + gz.height / 2) * sy);
-    }
-
-    // Obstacles
-    if (lesson && lesson.obstacles) {
-      lesson.obstacles.forEach(obs => {
-        ctx.fillStyle = tc.obstacle || '#374151';
-        ctx.fillRect(obs.x * sx, obs.y * sy, obs.width * sx, obs.height * sy);
-        ctx.strokeStyle = tc.obstacleBord || '#1F2937';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(obs.x * sx, obs.y * sy, obs.width * sx, obs.height * sy);
-      });
-    }
-
-    // Robot start position
-    const sp = lesson && (lesson.startPosition || lesson.robotStart);
-    const rx = sp ? sp.x * sx : w / 2;
-    const ry = sp ? sp.y * sy : h / 2;
-    const ra = sp ? ((sp.angleDeg || 0) * Math.PI / 180) : -Math.PI / 2;
-
-    // Render the actual built robot assembly when parts exist; fall back to a
-    // generic body otherwise. Sized to ~55% of the thumb's shorter side so the
-    // robot reads at a glance and its orientation is obvious.
-    const robotMaxPx = Math.min(w, h) * 0.55;
-    const parts = (robotConfig && robotConfig.parts) || [];
-    const drewAssembly = parts.length > 0 &&
-      typeof PartRenderers2D !== 'undefined' &&
-      PartRenderers2D.drawAssemblyToContext(ctx, parts, rx, ry, ra, robotMaxPx);
-
-    if (!drewAssembly) {
-      ctx.save();
-      ctx.translate(rx, ry);
-      ctx.rotate(ra);
-      ctx.fillStyle = '#3B82F6';
-      const bw = robotMaxPx, bh = robotMaxPx * (75 / 109);
-      if (ctx.roundRect) {
-        ctx.beginPath(); ctx.roundRect(-bw/2, -bh/2, bw, bh, 4); ctx.fill();
-      } else {
-        ctx.fillRect(-bw/2, -bh/2, bw, bh);
-      }
-      ctx.restore();
-    }
-
-    // Orientation arrow — drawn on top of either the assembly or the fallback
-    // box so the robot's facing direction is unambiguous.
-    ctx.save();
-    ctx.translate(rx, ry);
-    ctx.rotate(ra);
-    const ah = robotMaxPx * 0.18;
-    const aLen = robotMaxPx * 0.32;
-    const aTip = robotMaxPx * 0.58;
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.strokeStyle = 'rgba(15,23,42,0.55)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(aTip, 0);
-    ctx.lineTo(aTip - aLen,  ah);
-    ctx.lineTo(aTip - aLen, -ah);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-
-    // Border
-    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
-  }
 
   // ── Tab switching ──────────────────────────────────────────────────────────
 
@@ -1366,9 +1236,6 @@
     // ── Compute motor config for tank drive ──────────────────────
     _updateMotorConfig(robotConfig);
 
-    // Update build sim thumb
-    drawSimThumb(document.getElementById('build-sim-thumb'));
-
     // Update hardware panel and blocks panel if on code tab
     if (activeTab === 'code') {
       // Skip hardware panel rebuild if user is typing in it (avoids losing focus)
@@ -1593,7 +1460,6 @@
     const lesson = LESSONS[idx];
     if (!lesson) return;
     currentLessonIdx = idx;
-    drawSimThumb(document.getElementById('build-sim-thumb'));
   }
 
   function loadLessonSim(idx) {

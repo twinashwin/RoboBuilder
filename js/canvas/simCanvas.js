@@ -125,24 +125,6 @@ const SimCanvas = (() => {
 
   // ── Trail ─────────────────────────────────────────────────────────────────
 
-  function drawTrail() {
-    const pts = SimEngine.getTrail();
-    if (pts.length < 2) return;
-    const tc = window._themeColors || {};
-    ctx.save();
-    ctx.strokeStyle = tc.trail || 'rgba(59,130,246,0.4)';
-    ctx.lineWidth   = 2;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) {
-      ctx.lineTo(pts[i].x, pts[i].y);
-    }
-    ctx.stroke();
-    ctx.restore();
-  }
-
   // Draw a separate trail per body so disconnected drivetrains are visually distinct.
   function drawTrails() {
     const all = (typeof SimEngine.getTrails === 'function') ? SimEngine.getTrails() : [SimEngine.getTrail()];
